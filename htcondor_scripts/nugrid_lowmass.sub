@@ -1,0 +1,252 @@
+################################################################################
+# HTCondor Submit File: NuGrid Parameter Study - Low Mass Stars (1-2 M☉)
+#
+# This submit file runs low-mass stellar evolution models from the
+# NuGrid parameter study using NuDocker containers.
+#
+# Models: 1-2 M☉ with varying metallicity and mixing length alpha
+# Resources: 8 CPUs, 8 GB memory, 6 hours
+#
+# Usage:
+#   condor_submit nugrid_lowmass.sub
+#
+# Monitor:
+#   condor_q
+#   condor_q -better-analyze <jobid>
+#
+################################################################################
+
+# ============================================================================
+# Job Identification
+# ============================================================================
+
+universe                = docker
+docker_image            = nugrid/nudome:16.0
+
+# Descriptive job name
++JobName                = "NuGrid_LowMass"
+
+# ============================================================================
+# Resource Requirements
+# ============================================================================
+
+# CPU and memory
+request_cpus            = 8
+request_memory          = 8 GB
+request_disk            = 5 GB
+
+# Time limit (6 hours = 21600 seconds)
++MaxRuntime             = 21600
+
+# Rank machines by available memory (prefer nodes with more memory)
+rank                    = Memory
+
+# ============================================================================
+# Execution Environment
+# ============================================================================
+
+# Executable (wrapper script that runs MESA)
+executable              = run_mesa_model.sh
+
+# Arguments: model_id mass metallicity alpha
+# $(Process) will be replaced by HTCondor with job number (0-17 for 18 jobs)
+arguments               = $(Process) $(mass) $(metallicity) $(alpha)
+
+# Environment variables
+environment             = "OMP_NUM_THREADS=8 MESA_DIR=/home/user/mesa"
+
+# ============================================================================
+# File Transfer
+# ============================================================================
+
+# Transfer mode
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+
+# Files to transfer to compute node
+transfer_input_files    = mesa_work_template.tar.gz, parameter_grid_lowmass.txt
+
+# Files to transfer back
+transfer_output_files   = results_$(Process).tar.gz
+
+# Transfer remaps (if needed)
+# transfer_output_remaps = "results.tar.gz = results/lowmass_$(Process).tar.gz"
+
+# ============================================================================
+# Logging and Monitoring
+# ============================================================================
+
+# Log files
+log                     = logs/lowmass_$(Cluster).log
+output                  = logs/lowmass_$(Cluster)_$(Process).out
+error                   = logs/lowmass_$(Cluster)_$(Process).err
+
+# Logging verbosity
++LogLevel               = "verbose"
+
+# ============================================================================
+# Checkpointing and Fault Tolerance
+# ============================================================================
+
+# Enable checkpointing
++WantCheckpoint         = True
+
+# Checkpoint period (every 2 hours = 7200 seconds)
++CheckpointPeriod       = 7200
+
+# Allow job to run on any machine (including preemptible ones)
++JobLeaseDuration       = 3600
+
+# Retry failed jobs up to 3 times
+max_retries             = 3
+
+# ============================================================================
+# Requirements and Constraints
+# ============================================================================
+
+# Only run on machines with Docker support
+requirements            = (HasDocker =?= True)
+
+# Prefer machines with faster CPUs
+rank                    = (KFlops * 1000) + Memory
+
+# Don't run on same machine if previous run failed there
++PreventRescheduleOnSameNode = True
+
+# ============================================================================
+# Notification
+# ============================================================================
+
+# Email notifications (optional - comment out if not needed)
+# notify_user           = your.email@institution.edu
+# notification          = Complete
+
+# ============================================================================
+# Job Queue - One job per parameter combination
+# ============================================================================
+
+# Low-mass models: 1-2 M☉ × 3 metallicities × 3 alphas = 18 jobs
+# Job 0-8: 1.0 M☉
+# Job 9-17: 2.0 M☉
+
+# 1.0 M☉ models
+mass = 1.0
+metallicity = 0.02
+alpha = 1.8
+queue
+
+metallicity = 0.02
+alpha = 2.0
+queue
+
+metallicity = 0.02
+alpha = 2.2
+queue
+
+metallicity = 0.01
+alpha = 1.8
+queue
+
+metallicity = 0.01
+alpha = 2.0
+queue
+
+metallicity = 0.01
+alpha = 2.2
+queue
+
+metallicity = 0.001
+alpha = 1.8
+queue
+
+metallicity = 0.001
+alpha = 2.0
+queue
+
+metallicity = 0.001
+alpha = 2.2
+queue
+
+# 2.0 M☉ models
+mass = 2.0
+metallicity = 0.02
+alpha = 1.8
+queue
+
+metallicity = 0.02
+alpha = 2.0
+queue
+
+metallicity = 0.02
+alpha = 2.2
+queue
+
+metallicity = 0.01
+alpha = 1.8
+queue
+
+metallicity = 0.01
+alpha = 2.0
+queue
+
+metallicity = 0.01
+alpha = 2.2
+queue
+
+metallicity = 0.001
+alpha = 1.8
+queue
+
+metallicity = 0.001
+alpha = 2.0
+queue
+
+metallicity = 0.001
+alpha = 2.2
+queue
+
+# ============================================================================
+# Advanced Options
+# ============================================================================
+
+# Priority (higher = more important, range: -20 to +20)
+priority                = 0
+
+# Concurrency limit (max jobs running simultaneously)
+# Comment out to run all jobs at once
+# concurrency_limits    = USER.lowmass:6
+
+# Periodic hold/release (for debugging)
+# periodic_hold         = (JobStatus == 2) && ((CurrentTime - EnteredCurrentStatus) > 3600)
+# periodic_hold_reason  = "Job runtime exceeded 1 hour without checkpointing"
+# periodic_release      = (JobStatus == 5) && ((CurrentTime - EnteredCurrentStatus) > 300)
+
+# Job statistics
++AccountingGroup        = "astrophysics.stellar"
++Project                = "NuGrid_ParameterStudy"
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# Parameter Combinations:
+#   - Masses: 1.0, 2.0 M☉
+#   - Metallicities: 0.02, 0.01, 0.001
+#   - Mixing length alphas: 1.8, 2.0, 2.2
+#   - Total: 2 × 3 × 3 = 18 models
+#
+# Expected Runtimes:
+#   - 1.0 M☉: 2-4 hours
+#   - 2.0 M☉: 4-6 hours
+#
+# Memory Usage:
+#   - Typical: 4-6 GB
+#   - Maximum: 8 GB
+#
+# Output Files Per Job:
+#   - history.data (~50 MB)
+#   - profiles/ (~200 MB)
+#   - photos/ (~500 MB)
+#   - Total: ~750 MB per model
+#
+################################################################################

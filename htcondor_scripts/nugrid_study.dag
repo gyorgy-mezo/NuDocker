@@ -1,0 +1,154 @@
+################################################################################
+# HTCondor DAGMan File: NuGrid Parameter Study
+#
+# This DAG coordinates the complete 54-model parameter study with
+# dependencies and result aggregation.
+#
+# Structure:
+#   1. Low-mass jobs (18 models)
+#   2. Medium-mass jobs (18 models)
+#   3. High-mass jobs (18 models)
+#   4. Results aggregation job
+#
+# Usage:
+#   condor_submit_dag nugrid_study.dag
+#
+# Monitor:
+#   condor_q
+#   condor_watch_q
+#   tail -f nugrid_study.dag.dagman.out
+#
+################################################################################
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+# DAG configuration
+CONFIG nugrid_study.config
+
+# ============================================================================
+# Job Definitions
+# ============================================================================
+
+# Low-mass stellar models (1-2 M☉)
+JOB LowMass nugrid_lowmass.sub
+
+# Medium-mass stellar models (5-10 M☉)
+JOB MediumMass nugrid_mediummass.sub
+
+# High-mass stellar models (15-20 M☉)
+JOB HighMass nugrid_highmass.sub
+
+# Results aggregation (runs after all models complete)
+JOB Aggregate aggregate_results.sub
+
+# ============================================================================
+# Dependencies
+# ============================================================================
+
+# All mass groups can run in parallel (no dependencies between them)
+# Aggregation waits for all models to complete
+
+PARENT LowMass MediumMass HighMass CHILD Aggregate
+
+# ============================================================================
+# Retry Configuration
+# ============================================================================
+
+# Retry failed jobs automatically
+RETRY LowMass 2
+RETRY MediumMass 2
+RETRY HighMass 2
+RETRY Aggregate 1
+
+# ============================================================================
+# Priority
+# ============================================================================
+
+# High-mass models may take longer, so prioritize them
+PRIORITY HighMass 10
+PRIORITY MediumMass 5
+PRIORITY LowMass 1
+PRIORITY Aggregate 0
+
+# ============================================================================
+# Variables
+# ============================================================================
+
+# Set variables for all jobs
+VARS LowMass project="NuGrid_ParameterStudy"
+VARS MediumMass project="NuGrid_ParameterStudy"
+VARS HighMass project="NuGrid_ParameterStudy"
+VARS Aggregate project="NuGrid_ParameterStudy"
+
+# ============================================================================
+# Scripts
+# ============================================================================
+
+# Pre-script: Run before job starts (optional)
+# SCRIPT PRE LowMass check_resources.sh
+
+# Post-script: Run after job completes (optional)
+# SCRIPT POST LowMass verify_results.sh $RETURN
+
+# ============================================================================
+# Abort Conditions
+# ============================================================================
+
+# Abort entire DAG if aggregation fails
+ABORT-DAG-ON Aggregate 1
+
+# ============================================================================
+# Throttling
+# ============================================================================
+
+# Limit concurrent jobs to prevent overwhelming the cluster
+# Comment out to remove limits
+
+# Maximum 50 total jobs running at once across all mass groups
+MAXJOBS 50
+
+# Or set per-category limits:
+# CATEGORY LowMass low_mass_cat
+# CATEGORY MediumMass medium_mass_cat
+# CATEGORY HighMass high_mass_cat
+# MAXJOBS low_mass_cat 18
+# MAXJOBS medium_mass_cat 18
+# MAXJOBS high_mass_cat 12
+
+# ============================================================================
+# Node Status File
+# ============================================================================
+
+# Write node status to this file
+NODE_STATUS_FILE nugrid_study.status 30
+
+# ============================================================================
+# Metrics and Monitoring
+# ============================================================================
+
+# Write metrics to this file
+DOT nugrid_study.dot UPDATE
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# Job Summary:
+#   - LowMass: 18 jobs (1-2 M☉)
+#   - MediumMass: 18 jobs (5-10 M☉)
+#   - HighMass: 18 jobs (15-20 M☉)
+#   - Total: 54 stellar evolution models
+#
+# Estimated Resources:
+#   - CPU-hours: 3,000-5,000
+#   - Peak memory: 32 GB (high-mass models)
+#   - Disk space: 200-300 GB
+#
+# Estimated Runtime (with 50 concurrent jobs):
+#   - Optimistic: 12-24 hours
+#   - Realistic: 24-48 hours
+#   - Conservative: 48-72 hours
+#
+################################################################################
