@@ -28,17 +28,39 @@
     line: "SINGULARITY_CACHEDIR=/storage/containers/singularity_cache"
     create: yes
 
-- name: Copy HTCondor job templates to shared storage
-  copy:
-    src: "{{ item }}"
-    dest: /storage/batch_examples/
-    mode: '0644'
+- name: Create batch_examples subdirectories
+  file:
+    path: "/storage/batch_examples/{{ item }}"
+    state: directory
+    mode: '0755'
   loop:
-    - nudocker_lowmass.sub
-    - nudocker_mediummass.sub
-    - nudocker_highmass.sub
-    - nudocker_study.dag
-    - run_mesa_model.sh
+    - htcondor
+    - slurm
+    - common
+  when: inventory_hostname in groups['central_manager']
+
+- name: Copy HTCondor scripts from repository to batch_examples
+  copy:
+    src: /opt/nudocker/htcondor_scripts/
+    dest: /storage/batch_examples/htcondor/
+    remote_src: yes
+    mode: preserve
+  when: inventory_hostname in groups['central_manager']
+
+- name: Copy SLURM scripts from repository to batch_examples
+  copy:
+    src: /opt/nudocker/slurm_scripts/
+    dest: /storage/batch_examples/slurm/
+    remote_src: yes
+    mode: preserve
+  when: inventory_hostname in groups['central_manager']
+
+- name: Copy parameter grid generator to common directory
+  copy:
+    src: /opt/nudocker/slurm_scripts/generate_parameter_grid.py
+    dest: /storage/batch_examples/common/generate_parameter_grid.py
+    remote_src: yes
+    mode: '0755'
   when: inventory_hostname in groups['central_manager']
 
 - name: Create user workspace directories

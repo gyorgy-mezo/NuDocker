@@ -1,0 +1,10 @@
+---
+- name: restart slurmctld
+  systemd:
+    name: slurmctld
+    state: restarted
+
+- name: restart slurmdbd
+  systemd:
+    name: slurmdbd
+    state: restarted

@@ -1,0 +1,21 @@
+---
+# SLURM Controller Default Variables
+
+# Accounting configuration
+slurm_accounting_enabled: false
+slurm_db_password: "changeme_secure_password"
+
+# SLURM version
+slurm_version: "23.02"
+
+# Controller hostname (auto-detected from inventory)
+slurm_controller_host: "{{ hostvars[groups['central_manager'][0]]['ansible_hostname'] }}"
+
+# Scheduler configuration
+slurm_scheduler_type: "sched/backfill"
+slurm_select_type: "select/cons_tres"
+
+# Resource limits
+slurm_max_job_count: 10000
+slurm_max_submit_jobs: 10000
+slurm_max_array_size: 10000

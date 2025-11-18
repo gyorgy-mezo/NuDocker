@@ -1,6 +1,6 @@
-# NuDocker HTCondor Infrastructure as Code
+# NuDocker HTCondor + SLURM Infrastructure as Code
 
-Complete Infrastructure-as-Code (IaC) solution for deploying NuDocker on HTCondor cluster on HUN-REN Science Cloud.
+Complete Infrastructure-as-Code (IaC) solution for deploying NuDocker with dual-scheduler support (HTCondor + SLURM) on HUN-REN Science Cloud.
 
 ---
 
@@ -69,20 +69,23 @@ ssh -i ~/.ssh/id_rsa ubuntu@<FLOATING_IP>
 ### Software Stack (Packer)
 
 - Ubuntu 20.04 LTS
-- HTCondor 23.10
-- Docker 24.0 (for Docker Universe)
-- Singularity/Apptainer 3.11.4 (for HPC compatibility)
+- **HTCondor 23.10** (distributed computing scheduler)
+- **SLURM 23.02** (HPC workload manager)
+- Docker 24.0 (for HTCondor Docker Universe)
+- Singularity/Apptainer 3.11.4 (for SLURM compatibility)
 - NFS client/server
 - MESA dependencies (compilers, libraries, MPI)
 - Python 3 with scientific packages
 
 ### Configuration (Ansible)
 
-- HTCondor pool with password authentication
+- **HTCondor pool** with password authentication
+- **SLURM cluster** with munge authentication
 - NFS shared storage mounted at `/storage`
 - Docker and Singularity images pre-loaded
-- NuDocker scripts and job templates deployed
+- NuDocker batch scripts deployed (HTCondor and SLURM)
 - Environment configured for MESA runs
+- Dual-scheduler support: choose HTCondor or SLURM per workload
 
 ---
 
@@ -102,6 +105,7 @@ infrastructure/
 │   │   ├── install-docker.sh
 │   │   ├── install-singularity.sh
 │   │   ├── install-htcondor.sh
+│   │   ├── install-slurm.sh
 │   │   ├── install-nudocker-deps.sh
 │   │   ├── configure-system.sh
 │   │   ├── apply-configs.sh
@@ -130,8 +134,10 @@ infrastructure/
     │       └── all.yml   # Global variables
     └── roles/
         ├── common/           # Common configuration (all nodes)
-        ├── htcondor-central/ # Central manager setup
-        ├── htcondor-execute/ # Execute node setup
+        ├── htcondor-central/ # HTCondor central manager setup
+        ├── htcondor-execute/ # HTCondor execute node setup
+        ├── slurm-controller/ # SLURM controller setup
+        ├── slurm-compute/    # SLURM compute node setup
         ├── nudocker/         # NuDocker deployment
         └── cluster-verify/   # Health verification
 ```
@@ -166,13 +172,40 @@ condor_q
 
 **Parameter study (54 models)**:
 ```bash
-cd /storage/batch_examples
-condor_submit_dag nudocker_study.dag
+cd /storage/batch_examples/htcondor
+condor_submit_dag nugrid_study.dag
 watch -n 30 condor_q
+```
+
+### Submitting SLURM Jobs
+
+**Single MESA model**:
+```bash
+ssh ubuntu@<FLOATING_IP>
+
+cd /storage/batch_examples/slurm
+sbatch 01_single_mesa_run.slurm
+squeue
+```
+
+**Job array (parameter sweep)**:
+```bash
+cd /storage/batch_examples/slurm
+python3 generate_parameter_grid.py > /storage/config/parameter_grid.txt
+sbatch 02_array_mesa_run.slurm
+squeue -u $USER
+```
+
+**Large grid (100+ models)**:
+```bash
+cd /storage/batch_examples/slurm
+sbatch 04_large_grid.slurm
+watch -n 30 squeue
 ```
 
 ### Monitoring Cluster
 
+**HTCondor**:
 ```bash
 # Pool status
 condor_status
@@ -185,6 +218,33 @@ condor_q
 
 # Detailed job info
 condor_q -better-analyze <JOB_ID>
+
+# Storage usage
+df -h /storage
+```
+
+**SLURM**:
+```bash
+# Cluster status
+sinfo
+
+# Node details
+sinfo -Nel
+
+# Job queue
+squeue
+
+# Your jobs
+squeue -u $USER
+
+# Job details
+scontrol show job <JOB_ID>
+
+# Partition info
+scontrol show partition
+
+# Account usage (if accounting enabled)
+sacct -u $USER
 
 # Storage usage
 df -h /storage

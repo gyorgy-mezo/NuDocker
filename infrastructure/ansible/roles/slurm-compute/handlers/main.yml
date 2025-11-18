@@ -1,0 +1,9 @@
+---
+- name: restart slurmd
+  systemd:
+    name: slurmd
+    state: restarted
+
+- name: update grub
+  command: update-grub
+  when: ansible_virtualization_type != "docker"

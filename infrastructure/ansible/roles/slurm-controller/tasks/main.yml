@@ -1,0 +1,171 @@
+---
+# SLURM Controller Installation and Configuration
+# Manages slurmctld, slurmdbd, and accounting on central manager
+
+- name: Ensure SLURM configuration directory exists
+  file:
+    path: /etc/slurm
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: '0755'
+
+- name: Generate shared munge key
+  command: create-munge-key -f
+  args:
+    creates: /etc/munge/munge.key
+  register: munge_key_generated
+
+- name: Set munge key permissions
+  file:
+    path: /etc/munge/munge.key
+    owner: munge
+    group: munge
+    mode: '0400'
+
+- name: Copy munge key to shared storage (for compute nodes)
+  copy:
+    src: /etc/munge/munge.key
+    dest: /storage/slurm/munge.key
+    owner: root
+    group: root
+    mode: '0400'
+    remote_src: yes
+
+- name: Start and enable munge service
+  systemd:
+    name: munge
+    state: started
+    enabled: yes
+
+- name: Deploy SLURM configuration
+  template:
+    src: slurm.conf.j2
+    dest: /etc/slurm/slurm.conf
+    owner: slurm
+    group: slurm
+    mode: '0644'
+  notify: restart slurmctld
+
+- name: Copy SLURM configuration to shared storage (for compute nodes)
+  copy:
+    src: /etc/slurm/slurm.conf
+    dest: /storage/slurm/slurm.conf
+    owner: root
+    group: root
+    mode: '0644'
+    remote_src: yes
+
+- name: Deploy cgroup configuration
+  copy:
+    dest: /etc/slurm/cgroup.conf
+    content: |
+      CgroupAutomount=yes
+      CgroupMountpoint=/sys/fs/cgroup
+      ConstrainCores=yes
+      ConstrainRAMSpace=yes
+      ConstrainSwapSpace=yes
+      ConstrainDevices=yes
+    owner: slurm
+    group: slurm
+    mode: '0644'
+  notify: restart slurmctld
+
+- name: Copy cgroup configuration to shared storage
+  copy:
+    src: /etc/slurm/cgroup.conf
+    dest: /storage/slurm/cgroup.conf
+    owner: root
+    group: root
+    mode: '0644'
+    remote_src: yes
+
+- name: Create SLURM spool directory
+  file:
+    path: /var/spool/slurmctld
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: '0755'
+
+- name: Create SLURM log directory
+  file:
+    path: /var/log/slurm
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: '0755'
+
+- name: Create SLURM state directory
+  file:
+    path: /var/lib/slurm
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: '0755'
+
+- name: Start and enable slurmctld
+  systemd:
+    name: slurmctld
+    state: started
+    enabled: yes
+
+- name: Configure MariaDB for SlurmDBD (optional accounting)
+  block:
+    - name: Start MariaDB
+      systemd:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Create SlurmDBD database
+      mysql_db:
+        name: slurm_acct_db
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create SlurmDBD database user
+      mysql_user:
+        name: slurm
+        password: "{{ slurm_db_password }}"
+        priv: 'slurm_acct_db.*:ALL'
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Deploy slurmdbd configuration
+      template:
+        src: slurmdbd.conf.j2
+        dest: /etc/slurm/slurmdbd.conf
+        owner: slurm
+        group: slurm
+        mode: '0600'
+      notify: restart slurmdbd
+
+    - name: Start and enable slurmdbd
+      systemd:
+        name: slurmdbd
+        state: started
+        enabled: yes
+
+  when: slurm_accounting_enabled | default(false)
+
+- name: Wait for slurmctld to be ready
+  wait_for:
+    port: 6817
+    host: localhost
+    timeout: 60
+
+- name: Verify SLURM controller is running
+  command: scontrol ping
+  register: slurm_ping
+  changed_when: false
+  failed_when: slurm_ping.rc != 0
+
+- name: Display SLURM cluster status
+  command: sinfo
+  register: sinfo_output
+  changed_when: false
+
+- name: Show SLURM cluster information
+  debug:
+    msg: "{{ sinfo_output.stdout_lines }}"

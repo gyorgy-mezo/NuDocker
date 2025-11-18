@@ -1,0 +1,16 @@
+---
+# SLURM Compute Node Default Variables
+
+# SLURM version
+slurm_version: "23.02"
+
+# Controller configuration (auto-detected from inventory)
+slurm_controller_host: "{{ hostvars[groups['central_manager'][0]]['ansible_hostname'] }}"
+slurm_controller_ip: "{{ hostvars[groups['central_manager'][0]]['ansible_default_ipv4']['address'] }}"
+
+# Shared storage path
+slurm_shared_storage: "/storage/slurm"
+
+# Compute node resources (auto-detected)
+slurmd_cpus: "{{ ansible_processor_vcpus | default(8) }}"
+slurmd_memory_mb: "{{ (ansible_memtotal_mb * 0.95) | int }}"

@@ -161,6 +161,11 @@ build {
     ]
   }
 
+  # Install SLURM Workload Manager
+  provisioner "shell" {
+    script = "${path.root}/scripts/install-slurm.sh"
+  }
+
   # Install NuDocker dependencies
   provisioner "shell" {
     script = "${path.root}/scripts/install-nudocker-deps.sh"

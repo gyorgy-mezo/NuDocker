@@ -1,6 +1,7 @@
 ---
-# Main playbook for NuDocker HTCondor Cluster setup
+# Main playbook for NuDocker HTCondor + SLURM Cluster setup
 # This playbook orchestrates the complete cluster configuration
+# Supports dual-scheduler deployment (HTCondor + SLURM)
 
 - name: Configure all nodes (common setup)
   hosts: all
@@ -10,21 +11,43 @@
   roles:
     - common
 
-- name: Configure Central Manager
+- name: Configure HTCondor Central Manager
   hosts: central_manager
   become: yes
   tags:
     - central
+    - htcondor
   roles:
     - htcondor-central
 
-- name: Configure Execute Nodes
+- name: Configure HTCondor Execute Nodes
   hosts: execute_nodes
   become: yes
   tags:
     - execute
+    - htcondor
   roles:
     - htcondor-execute
+
+- name: Configure SLURM Controller
+  hosts: central_manager
+  become: yes
+  tags:
+    - central
+    - slurm
+  roles:
+    - slurm-controller
+  when: enable_slurm | default(true)
+
+- name: Configure SLURM Compute Nodes
+  hosts: execute_nodes
+  become: yes
+  tags:
+    - execute
+    - slurm
+  roles:
+    - slurm-compute
+  when: enable_slurm | default(true)
 
 - name: Configure NuDocker environment
   hosts: all
