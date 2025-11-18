@@ -50,6 +50,7 @@
     - batch_examples
     - htcondor_jobs
     - slurm
+    - config
 
 - name: Enable and start NFS server
   systemd:

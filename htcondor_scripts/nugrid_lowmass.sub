@@ -63,9 +63,6 @@ environment             = "OMP_NUM_THREADS=8 MESA_DIR=/home/user/mesa"
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT
 
-# Files to transfer to compute node
-transfer_input_files    = mesa_work_template.tar.gz, parameter_grid_lowmass.txt
-
 # Files to transfer back
 transfer_output_files   = results_$(Process).tar.gz
 

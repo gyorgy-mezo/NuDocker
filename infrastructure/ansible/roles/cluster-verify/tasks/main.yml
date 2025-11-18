@@ -61,20 +61,73 @@
   debug:
     msg: "Singularity version: {{ singularity_check.stdout if singularity_check.rc == 0 else 'NOT available' }}"
 
+- name: Check SLURM controller status
+  command: scontrol ping
+  register: slurm_ping
+  changed_when: false
+  ignore_errors: yes
+  when: enable_slurm | default(true)
+
+- name: Get SLURM cluster info
+  command: sinfo
+  register: sinfo_output
+  changed_when: false
+  ignore_errors: yes
+  when: enable_slurm | default(true)
+
+- name: Display SLURM status
+  debug:
+    msg: "SLURM: {{ 'Available - ' + slurm_ping.stdout if slurm_ping.rc == 0 else 'NOT available or not installed' }}"
+  when: enable_slurm | default(true)
+
+- name: Display SLURM cluster info
+  debug:
+    var: sinfo_output.stdout_lines
+  when: enable_slurm | default(true) and sinfo_output.rc == 0
+
+- name: Get SLURM node status
+  command: sinfo -Nel
+  register: slurm_nodes
+  changed_when: false
+  ignore_errors: yes
+  when: enable_slurm | default(true)
+
+- name: Display SLURM node details
+  debug:
+    var: slurm_nodes.stdout_lines
+  when: enable_slurm | default(true) and slurm_nodes.rc == 0
+
 - name: Create cluster health report
   copy:
     content: |
-      HTCondor Cluster Health Report
-      ==============================
+      NuDocker Dual-Scheduler Cluster Health Report
+      ==============================================
       Generated: {{ ansible_date_time.iso8601 }}
       Cluster: {{ cluster_name }}
 
       HTCondor Pool Status:
       {{ condor_total_output.stdout }}
 
-      Docker: {{ 'Available' if docker_check.rc == 0 else 'NOT Available' }}
-      Singularity: {{ singularity_check.stdout if singularity_check.rc == 0 else 'NOT Available' }}
+      {% if enable_slurm | default(true) and slurm_ping.rc == 0 %}
+      SLURM Cluster Status:
+      {{ sinfo_output.stdout }}
 
-      NFS Storage: Mounted on all nodes
+      SLURM Nodes:
+      {{ slurm_nodes.stdout }}
+      {% else %}
+      SLURM: Not installed or not enabled
+      {% endif %}
+
+      Container Runtimes:
+      - Docker: {{ 'Available' if docker_check.rc == 0 else 'NOT Available' }}
+      - Singularity: {{ singularity_check.stdout if singularity_check.rc == 0 else 'NOT Available' }}
+
+      Storage:
+      - NFS: Mounted on all nodes at /storage
+
+      Batch Scripts:
+      - HTCondor: /storage/batch_examples/htcondor/
+      - SLURM: /storage/batch_examples/slurm/
+      - Common: /storage/batch_examples/common/
     dest: /storage/cluster_health_report.txt
     mode: '0644'

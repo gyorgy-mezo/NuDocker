@@ -1,6 +1,6 @@
 #!/bin/bash
-# Validation script for NuDocker HTCondor Infrastructure
-# Tests cluster functionality and readiness
+# Validation script for NuDocker HTCondor + SLURM Infrastructure
+# Tests dual-scheduler cluster functionality and readiness
 
 set -e
 
@@ -287,19 +287,103 @@ test_nudocker_scripts() {
         print_result "NuDocker repository cloned" "FAIL" "Directory not found"
     fi
 
-    # Check batch examples
+    # Check HTCondor batch examples
     if ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$CENTRAL_IP \
-        "[ -f /storage/batch_examples/nudocker_study.dag ]" 2>/dev/null; then
-        print_result "HTCondor job templates deployed" "PASS"
+        "[ -d /storage/batch_examples/htcondor ] && [ -f /storage/batch_examples/htcondor/nugrid_study.dag ]" 2>/dev/null; then
+        print_result "HTCondor batch scripts deployed" "PASS"
     else
-        print_result "HTCondor job templates deployed" "FAIL" "Templates not found"
+        print_result "HTCondor batch scripts deployed" "FAIL" "Scripts not found in /storage/batch_examples/htcondor/"
+    fi
+
+    # Check SLURM batch examples
+    if ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$CENTRAL_IP \
+        "[ -d /storage/batch_examples/slurm ] && [ -f /storage/batch_examples/slurm/01_single_mesa_run.slurm ]" 2>/dev/null; then
+        print_result "SLURM batch scripts deployed" "PASS"
+    else
+        print_result "SLURM batch scripts deployed" "WARN" "Scripts not found in /storage/batch_examples/slurm/"
+    fi
+
+    # Check common utilities
+    if ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$CENTRAL_IP \
+        "[ -f /storage/batch_examples/common/generate_parameter_grid.py ]" 2>/dev/null; then
+        print_result "Parameter grid generator deployed" "PASS"
+    else
+        print_result "Parameter grid generator deployed" "WARN" "Not found in /storage/batch_examples/common/"
+    fi
+}
+
+# Test SLURM cluster
+test_slurm_cluster() {
+    echo ""
+    echo "=== Testing SLURM Cluster ==="
+
+    CENTRAL_IP=$(cd terraform && terraform output -raw central_manager_floating_ip 2>/dev/null)
+
+    # Check if SLURM is installed
+    if ! ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$CENTRAL_IP \
+        "which scontrol" &>/dev/null; then
+        print_result "SLURM installed" "WARN" "SLURM not installed (optional scheduler)"
+        return 0
+    fi
+
+    print_result "SLURM installed" "PASS"
+
+    # Check slurmctld is running
+    if ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$CENTRAL_IP \
+        "systemctl is-active slurmctld" 2>/dev/null | grep -q "active"; then
+        print_result "SLURM controller running" "PASS"
+    else
+        print_result "SLURM controller running" "FAIL" "slurmctld not active"
+        return 1
+    fi
+
+    # Check SLURM cluster status
+    if ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$CENTRAL_IP \
+        "scontrol ping" &>/dev/null; then
+        print_result "SLURM cluster responding" "PASS"
+    else
+        print_result "SLURM cluster responding" "FAIL" "scontrol ping failed"
+        return 1
+    fi
+
+    # Check compute nodes
+    NODE_COUNT=$(ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$CENTRAL_IP \
+        "sinfo -h -o '%D'" 2>/dev/null | tr -d '[:space:]')
+
+    if [ "$NODE_COUNT" -ge 5 ]; then
+        print_result "SLURM compute nodes" "PASS"
+        echo "   Nodes: $NODE_COUNT"
+    elif [ "$NODE_COUNT" -gt 0 ]; then
+        print_result "SLURM compute nodes" "WARN" "Expected 5, got $NODE_COUNT"
+    else
+        print_result "SLURM compute nodes" "FAIL" "No nodes available"
+    fi
+
+    # Check partitions
+    PARTITION_COUNT=$(ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$CENTRAL_IP \
+        "sinfo -h -o '%P' | wc -l" 2>/dev/null | tr -d '[:space:]')
+
+    if [ "$PARTITION_COUNT" -ge 1 ]; then
+        print_result "SLURM partitions configured" "PASS"
+        echo "   Partitions: $PARTITION_COUNT"
+    else
+        print_result "SLURM partitions configured" "FAIL" "No partitions found"
+    fi
+
+    # Check munge authentication
+    if ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$CENTRAL_IP \
+        "systemctl is-active munge" 2>/dev/null | grep -q "active"; then
+        print_result "Munge authentication running" "PASS"
+    else
+        print_result "Munge authentication running" "FAIL" "Munge not active"
     fi
 }
 
 # Main validation
 main() {
     echo "=========================================="
-    echo "NuDocker HTCondor Infrastructure Validation"
+    echo "NuDocker Dual-Scheduler Infrastructure Validation"
+    echo "HTCondor + SLURM"
     echo "=========================================="
     echo ""
 
@@ -314,6 +398,7 @@ main() {
     test_terraform_state || true
     test_ssh_connectivity || true
     test_htcondor_pool || true
+    test_slurm_cluster || true
     test_nfs_storage || true
     test_docker || true
     test_singularity || true
