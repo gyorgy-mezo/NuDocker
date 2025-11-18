@@ -1,0 +1,7 @@
+---
+# Handlers for HTCondor Execute Node
+
+- name: restart condor
+  systemd:
+    name: condor
+    state: restarted

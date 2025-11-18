@@ -1,0 +1,65 @@
+---
+# Common tasks for all nodes in the cluster
+
+- name: Wait for cloud-init to complete
+  wait_for:
+    path: /var/lib/cloud/instance/boot-finished
+    timeout: 300
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Set timezone to UTC
+  timezone:
+    name: UTC
+
+- name: Configure /etc/hosts with cluster nodes
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+    mode: '0644'
+
+- name: Ensure NFS mount point exists
+  file:
+    path: /storage
+    state: directory
+    mode: '0755'
+
+- name: Configure system limits
+  copy:
+    dest: /etc/security/limits.d/99-htcondor.conf
+    content: |
+      condor soft nofile 65536
+      condor hard nofile 65536
+      * soft nofile 65536
+      * hard nofile 65536
+    mode: '0644'
+
+- name: Configure kernel parameters
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-nudocker.conf
+    reload: yes
+  loop:
+    - { key: 'fs.inotify.max_user_watches', value: '524288' }
+    - { key: 'fs.inotify.max_user_instances', value: '512' }
+    - { key: 'net.core.somaxconn', value: '1024' }
+    - { key: 'net.ipv4.tcp_max_syn_backlog', value: '2048' }
+    - { key: 'kernel.shmmax', value: '68719476736' }
+    - { key: 'kernel.shmall', value: '4294967296' }
+
+- name: Ensure HTCondor directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: condor
+    group: condor
+    mode: '0755'
+  loop:
+    - /var/lib/condor
+    - /var/log/condor
+    - /var/run/condor
+    - /etc/condor/config.d

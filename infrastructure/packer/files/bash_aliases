@@ -1,0 +1,55 @@
+# Bash aliases for NuDocker environment
+# Automatically sourced for all users
+
+# MESA environment (will be set by actual MESA installation)
+# These are placeholders that get configured when MESA is mounted
+if [ -d "$HOME/mesa" ]; then
+    export MESA_DIR=$HOME/mesa
+fi
+
+if [ -d "$HOME/mesasdk" ]; then
+    export MESASDK_ROOT=$HOME/mesasdk
+    if [ -f "$MESASDK_ROOT/bin/mesasdk_init.sh" ]; then
+        source $MESASDK_ROOT/bin/mesasdk_init.sh
+    fi
+fi
+
+# OpenMP settings (adjust based on your CPU count)
+export OMP_NUM_THREADS=8
+
+# Python alias
+alias python='python3'
+alias pip='pip3'
+
+# Editor aliases
+alias ed='emacs -nw'
+
+# Helpful aliases
+alias ll='ls -lah'
+alias condor-status='condor_status'
+alias condor-q='condor_q'
+alias condor-submit='condor_submit'
+
+# NuDocker helpers
+alias goto-storage='cd /storage'
+alias goto-mesa='cd $MESA_DIR'
+alias goto-results='cd /storage/results'
+
+# HTCondor helpers
+check_cluster() {
+    echo "=== HTCondor Status ==="
+    condor_status
+    echo ""
+    echo "=== Job Queue ==="
+    condor_q
+}
+
+# MESA helpers
+mesa_build() {
+    if [ -d "$MESA_DIR" ]; then
+        cd $MESA_DIR
+        ./install
+    else
+        echo "MESA_DIR not set or directory does not exist"
+    fi
+}

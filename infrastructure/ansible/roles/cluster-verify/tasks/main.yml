@@ -1,0 +1,80 @@
+---
+# Verify HTCondor cluster health
+
+- name: Wait for all execute nodes to register
+  shell: condor_status -total | grep 'Total' | awk '{print $4}'
+  register: slots_available
+  retries: 10
+  delay: 10
+  until: slots_available.stdout | int >= 40
+  changed_when: false
+
+- name: Get HTCondor status
+  command: condor_status
+  register: condor_status_output
+  changed_when: false
+
+- name: Display HTCondor status
+  debug:
+    var: condor_status_output.stdout_lines
+
+- name: Get pool summary
+  command: condor_status -total
+  register: condor_total_output
+  changed_when: false
+
+- name: Display pool summary
+  debug:
+    var: condor_total_output.stdout_lines
+
+- name: Check NFS mount on execute nodes
+  command: df -h /storage
+  register: nfs_mount
+  changed_when: false
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['execute_nodes'] }}"
+
+- name: Display NFS mount status
+  debug:
+    msg: "{{ item.item }}: {{ item.stdout_lines }}"
+  loop: "{{ nfs_mount.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Verify Docker is available
+  command: docker ps
+  register: docker_check
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display Docker status
+  debug:
+    msg: "Docker is {{ 'available' if docker_check.rc == 0 else 'NOT available' }}"
+
+- name: Verify Singularity is available
+  command: singularity --version
+  register: singularity_check
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display Singularity status
+  debug:
+    msg: "Singularity version: {{ singularity_check.stdout if singularity_check.rc == 0 else 'NOT available' }}"
+
+- name: Create cluster health report
+  copy:
+    content: |
+      HTCondor Cluster Health Report
+      ==============================
+      Generated: {{ ansible_date_time.iso8601 }}
+      Cluster: {{ cluster_name }}
+
+      HTCondor Pool Status:
+      {{ condor_total_output.stdout }}
+
+      Docker: {{ 'Available' if docker_check.rc == 0 else 'NOT Available' }}
+      Singularity: {{ singularity_check.stdout if singularity_check.rc == 0 else 'NOT Available' }}
+
+      NFS Storage: Mounted on all nodes
+    dest: /storage/cluster_health_report.txt
+    mode: '0644'

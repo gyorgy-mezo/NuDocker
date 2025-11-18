@@ -1,0 +1,43 @@
+---
+# Main playbook for NuDocker HTCondor Cluster setup
+# This playbook orchestrates the complete cluster configuration
+
+- name: Configure all nodes (common setup)
+  hosts: all
+  become: yes
+  tags:
+    - common
+  roles:
+    - common
+
+- name: Configure Central Manager
+  hosts: central_manager
+  become: yes
+  tags:
+    - central
+  roles:
+    - htcondor-central
+
+- name: Configure Execute Nodes
+  hosts: execute_nodes
+  become: yes
+  tags:
+    - execute
+  roles:
+    - htcondor-execute
+
+- name: Configure NuDocker environment
+  hosts: all
+  become: yes
+  tags:
+    - nudocker
+  roles:
+    - nudocker
+
+- name: Verify cluster health
+  hosts: central_manager
+  become: yes
+  tags:
+    - verify
+  roles:
+    - cluster-verify

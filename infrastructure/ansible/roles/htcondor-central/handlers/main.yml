@@ -1,0 +1,12 @@
+---
+# Handlers for HTCondor Central Manager
+
+- name: restart condor
+  systemd:
+    name: condor
+    state: restarted
+
+- name: restart nfs-server
+  systemd:
+    name: nfs-kernel-server
+    state: restarted

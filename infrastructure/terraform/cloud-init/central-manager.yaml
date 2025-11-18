@@ -1,0 +1,90 @@
+#cloud-config
+# Cloud-init configuration for HTCondor Central Manager
+# NuDocker HTCondor Infrastructure
+
+hostname: ${hostname}
+fqdn: ${hostname}.local
+manage_etc_hosts: true
+
+# Update package database
+package_update: true
+package_upgrade: true
+
+packages:
+  - nfs-kernel-server
+  - vim
+  - git
+  - curl
+  - wget
+  - htop
+
+# Write configuration files
+write_files:
+  # HTCondor pool password
+  - path: /etc/condor/pool_password
+    content: ${pool_password}
+    permissions: '0600'
+    owner: condor:condor
+
+  # Initial Ansible inventory marker
+  - path: /etc/condor/cluster_name
+    content: ${cluster_name}
+    permissions: '0644'
+
+  # Mount script for shared storage
+  - path: /usr/local/bin/setup-shared-storage.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      # Wait for volume to be attached
+      while [ ! -e /dev/vdb ]; do
+        echo "Waiting for /dev/vdb..."
+        sleep 2
+      done
+
+      # Check if filesystem exists
+      if ! blkid /dev/vdb; then
+        echo "Creating filesystem on /dev/vdb..."
+        mkfs.ext4 /dev/vdb
+      fi
+
+      # Create mount point
+      mkdir -p /storage
+
+      # Mount
+      mount /dev/vdb /storage
+
+      # Add to fstab
+      if ! grep -q '/dev/vdb' /etc/fstab; then
+        echo '/dev/vdb /storage ext4 defaults 0 2' >> /etc/fstab
+      fi
+
+      # Create directory structure
+      mkdir -p /storage/{mesa,containers,results,users,batch_examples}
+
+      # Set permissions
+      chmod -R 755 /storage
+
+      echo "Shared storage setup complete"
+
+runcmd:
+  # Set hostname
+  - hostnamectl set-hostname ${hostname}
+
+  # Setup shared storage
+  - /usr/local/bin/setup-shared-storage.sh
+
+  # Configure NFS exports
+  - echo "/storage 10.0.0.0/24(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
+  - systemctl restart nfs-kernel-server
+  - systemctl enable nfs-kernel-server
+
+  # Create marker file for Ansible
+  - touch /var/lib/cloud/instance/nudocker-ready
+
+  # Log completion
+  - echo "Cloud-init completed at $(date)" >> /var/log/nudocker-init.log
+
+final_message: "HTCondor central manager cloud-init completed after $UPTIME seconds"

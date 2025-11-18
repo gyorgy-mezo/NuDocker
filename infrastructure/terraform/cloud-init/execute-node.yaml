@@ -1,0 +1,75 @@
+#cloud-config
+# Cloud-init configuration for HTCondor Execute Node
+# NuDocker HTCondor Infrastructure
+
+hostname: ${hostname}
+fqdn: ${hostname}.local
+manage_etc_hosts: true
+
+# Update package database
+package_update: true
+package_upgrade: true
+
+packages:
+  - nfs-common
+  - vim
+  - git
+  - curl
+  - wget
+  - htop
+
+# Write configuration files
+write_files:
+  # HTCondor pool password
+  - path: /etc/condor/pool_password
+    content: ${pool_password}
+    permissions: '0600'
+    owner: condor:condor
+
+  # Cluster information
+  - path: /etc/condor/cluster_name
+    content: ${cluster_name}
+    permissions: '0644'
+
+  # NFS mount script
+  - path: /usr/local/bin/setup-nfs-client.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      # Wait for NFS server
+      echo "Waiting for NFS server at 10.0.0.10..."
+      while ! ping -c 1 10.0.0.10 &> /dev/null; do
+        sleep 2
+      done
+
+      # Create mount point
+      mkdir -p /storage
+
+      # Mount NFS
+      echo "Mounting NFS share..."
+      mount -t nfs 10.0.0.10:/storage /storage
+
+      # Add to fstab
+      if ! grep -q '10.0.0.10:/storage' /etc/fstab; then
+        echo '10.0.0.10:/storage /storage nfs defaults 0 0' >> /etc/fstab
+      fi
+
+      echo "NFS client setup complete"
+
+runcmd:
+  # Set hostname
+  - hostnamectl set-hostname ${hostname}
+
+  # Setup NFS client (wait for NFS server to be ready)
+  - sleep 30
+  - /usr/local/bin/setup-nfs-client.sh
+
+  # Create marker file for Ansible
+  - touch /var/lib/cloud/instance/nudocker-ready
+
+  # Log completion
+  - echo "Cloud-init completed at $(date)" >> /var/log/nudocker-init.log
+
+final_message: "HTCondor execute node cloud-init completed after $UPTIME seconds"

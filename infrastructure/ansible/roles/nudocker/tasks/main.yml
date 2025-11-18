@@ -1,0 +1,83 @@
+---
+# Configure NuDocker environment
+
+- name: Clone NuDocker repository to central manager
+  git:
+    repo: https://github.com/NuGrid/NuDocker.git
+    dest: /opt/nudocker
+    version: main
+  when: inventory_hostname in groups['central_manager']
+
+- name: Copy NuDocker scripts to shared storage
+  copy:
+    src: /opt/nudocker/
+    dest: /storage/nudocker/
+    remote_src: yes
+    mode: preserve
+  when: inventory_hostname in groups['central_manager']
+
+- name: Create Singularity cache directory
+  file:
+    path: /storage/containers/singularity_cache
+    state: directory
+    mode: '0755'
+
+- name: Set Singularity cache environment
+  lineinfile:
+    path: /etc/environment
+    line: "SINGULARITY_CACHEDIR=/storage/containers/singularity_cache"
+    create: yes
+
+- name: Copy HTCondor job templates to shared storage
+  copy:
+    src: "{{ item }}"
+    dest: /storage/batch_examples/
+    mode: '0644'
+  loop:
+    - nudocker_lowmass.sub
+    - nudocker_mediummass.sub
+    - nudocker_highmass.sub
+    - nudocker_study.dag
+    - run_mesa_model.sh
+  when: inventory_hostname in groups['central_manager']
+
+- name: Create user workspace directories
+  file:
+    path: "/storage/users/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - default
+    - shared
+  when: inventory_hostname in groups['central_manager']
+
+- name: Deploy NuDocker bash profile
+  copy:
+    src: nudocker_profile.sh
+    dest: /etc/profile.d/nudocker.sh
+    mode: '0644'
+
+- name: Pull NuDocker images (central manager only)
+  community.docker.docker_image:
+    name: "{{ item }}"
+    source: pull
+  loop:
+    - nugrid/nudome:16.0
+    - nugrid/nudome:18.0
+    - nugrid/nudome:20.031
+    - nugrid/nudome:20.1a
+  when: inventory_hostname in groups['central_manager']
+  ignore_errors: yes
+
+- name: Build Singularity images from Docker (central manager only)
+  shell: |
+    if [ ! -f /storage/containers/{{ item.name }}.sif ]; then
+      singularity build /storage/containers/{{ item.name }}.sif docker://{{ item.image }}
+    fi
+  loop:
+    - { name: 'nudome-16.0', image: 'nugrid/nudome:16.0' }
+    - { name: 'nudome-18.0', image: 'nugrid/nudome:18.0' }
+    - { name: 'nudome-20.031', image: 'nugrid/nudome:20.031' }
+    - { name: 'nudome-20.1a', image: 'nugrid/nudome:20.1a' }
+  when: inventory_hostname in groups['central_manager']
+  ignore_errors: yes

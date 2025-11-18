@@ -1,0 +1,59 @@
+---
+# Configure HTCondor Execute Node (startd)
+
+- name: Deploy HTCondor execute node configuration
+  template:
+    src: condor_config.local.j2
+    dest: /etc/condor/condor_config.local
+    owner: condor
+    group: condor
+    mode: '0644'
+  notify: restart condor
+
+- name: Deploy pool password
+  copy:
+    content: "{{ htcondor_pool_password }}"
+    dest: /etc/condor/pool_password
+    owner: condor
+    group: condor
+    mode: '0600'
+  notify: restart condor
+
+- name: Run condor_store_cred to store pool password
+  shell: condor_store_cred -f /etc/condor/pool_password
+  args:
+    creates: /var/lib/condor/passwords.d/POOL
+
+- name: Wait for NFS server to be available
+  wait_for:
+    host: "{{ condor_host }}"
+    port: 2049
+    timeout: 300
+
+- name: Mount NFS shared storage
+  mount:
+    path: /storage
+    src: "{{ condor_host }}:/storage"
+    fstype: nfs
+    opts: defaults
+    state: mounted
+
+- name: Create execute directory on local disk
+  file:
+    path: /var/lib/condor/execute
+    state: directory
+    owner: condor
+    group: condor
+    mode: '0755'
+
+- name: Enable and start HTCondor
+  systemd:
+    name: condor
+    enabled: yes
+    state: started
+
+- name: Wait for HTCondor to start
+  wait_for:
+    port: 9618
+    delay: 5
+    timeout: 60

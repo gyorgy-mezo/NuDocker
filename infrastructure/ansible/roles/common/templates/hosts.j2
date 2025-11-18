@@ -1,0 +1,18 @@
+127.0.0.1 localhost
+127.0.1.1 {{ ansible_hostname }}
+
+# IPv6
+::1 ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+
+# HTCondor Cluster Nodes
+10.0.0.10 {{ cluster_name }}-central central
+10.0.0.20 {{ cluster_name }}-execute-01 execute-01
+10.0.0.21 {{ cluster_name }}-execute-02 execute-02
+10.0.0.22 {{ cluster_name }}-execute-03 execute-03
+10.0.0.23 {{ cluster_name }}-execute-04 execute-04
+10.0.0.24 {{ cluster_name }}-execute-05 execute-05

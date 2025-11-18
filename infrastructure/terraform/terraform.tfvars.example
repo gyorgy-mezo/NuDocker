@@ -1,0 +1,74 @@
+# Terraform Variables Example for HUN-REN Cloud
+# Copy this file to terraform.tfvars and fill in your values
+
+# ==============================================================================
+# OpenStack Authentication (REQUIRED)
+# ==============================================================================
+
+openstack_auth_url      = "https://cloud.hunren.hu:5000/v3"
+openstack_region        = "RegionOne"
+openstack_project_name  = "your-project-name"
+openstack_username      = "your-username"
+openstack_password      = "your-password"
+openstack_user_domain_name = "Default"
+
+# ==============================================================================
+# Cluster Configuration
+# ==============================================================================
+
+cluster_name = "nudocker-htcondor"
+environment  = "prod"
+
+# ==============================================================================
+# Network Configuration
+# ==============================================================================
+
+external_network_name   = "public"
+private_network_cidr    = "10.0.0.0/24"
+dns_nameservers         = ["8.8.8.8", "8.8.4.4"]
+
+# ==============================================================================
+# Node Configuration
+# ==============================================================================
+
+# Central Manager (8 vCPU, 16 GB RAM)
+central_manager_flavor      = "m2.large"
+central_manager_volume_size = 100
+
+# Execute Nodes (5 × 8 vCPU, 32 GB RAM)
+execute_node_count       = 5
+execute_node_flavor      = "g2.xlarge"
+execute_node_volume_size = 100
+
+# ==============================================================================
+# Storage
+# ==============================================================================
+
+shared_storage_size = 500  # GB
+shared_storage_type = "standard"
+
+# ==============================================================================
+# SSH Configuration
+# ==============================================================================
+
+ssh_key_name         = "nudocker-key"
+ssh_public_key_file  = "~/.ssh/id_rsa.pub"
+allowed_ssh_cidr     = ["0.0.0.0/0"]  # RESTRICT THIS IN PRODUCTION!
+
+# ==============================================================================
+# HTCondor Configuration
+# ==============================================================================
+
+htcondor_version     = "23.10"
+htcondor_pool_password = "CHANGE-THIS-TO-A-STRONG-PASSWORD"
+
+# ==============================================================================
+# Tags
+# ==============================================================================
+
+tags = {
+  Project     = "NuDocker"
+  ManagedBy   = "Terraform"
+  Purpose     = "HTCondor-Cluster"
+  Environment = "production"
+}

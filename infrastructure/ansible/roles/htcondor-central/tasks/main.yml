@@ -1,0 +1,69 @@
+---
+# Configure HTCondor Central Manager (collector + negotiator + schedd)
+
+- name: Deploy HTCondor central manager configuration
+  template:
+    src: condor_config.local.j2
+    dest: /etc/condor/condor_config.local
+    owner: condor
+    group: condor
+    mode: '0644'
+  notify: restart condor
+
+- name: Deploy pool password
+  copy:
+    content: "{{ htcondor_pool_password }}"
+    dest: /etc/condor/pool_password
+    owner: condor
+    group: condor
+    mode: '0600'
+  notify: restart condor
+
+- name: Run condor_store_cred to store pool password
+  shell: condor_store_cred -f /etc/condor/pool_password
+  args:
+    creates: /var/lib/condor/passwords.d/POOL
+
+- name: Ensure NFS exports directory
+  file:
+    path: /storage
+    state: directory
+    mode: '0755'
+
+- name: Configure NFS exports
+  lineinfile:
+    path: /etc/exports
+    line: "/storage 10.0.0.0/24(rw,sync,no_subtree_check,no_root_squash)"
+    create: yes
+  notify: restart nfs-server
+
+- name: Create NuDocker directory structure on shared storage
+  file:
+    path: "/storage/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - mesa
+    - containers
+    - results
+    - users
+    - batch_examples
+    - htcondor_jobs
+
+- name: Enable and start NFS server
+  systemd:
+    name: nfs-kernel-server
+    enabled: yes
+    state: started
+
+- name: Enable and start HTCondor
+  systemd:
+    name: condor
+    enabled: yes
+    state: started
+
+- name: Wait for HTCondor to start
+  wait_for:
+    port: 9618
+    delay: 5
+    timeout: 60

@@ -1,0 +1,21 @@
+# Packer Variables Example for HUN-REN Cloud
+# Copy this file to variables.pkrvars.hcl and fill in your values
+
+# OpenStack Authentication
+openstack_auth_url         = "https://cloud.hunren.hu:5000/v3"
+openstack_region           = "RegionOne"
+openstack_project_name     = "your-project-name"
+openstack_username         = "your-username"
+openstack_password         = "your-password"
+openstack_user_domain_name = "Default"
+
+# Image Configuration
+source_image_name = "Ubuntu-20.04"
+flavor_name       = "m2.large"
+network_name      = "public"
+image_name        = "nudocker-htcondor-base"
+
+# Software Versions
+htcondor_version    = "23.10"
+docker_version      = "24.0"
+singularity_version = "3.11.4"

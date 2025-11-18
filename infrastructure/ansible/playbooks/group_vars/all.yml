@@ -1,0 +1,13 @@
+---
+# Global variables for all hosts
+
+# HTCondor configuration
+condor_host: "10.0.0.10"
+cluster_name: "nudocker-htcondor"
+htcondor_pool_password: "{{ lookup('env', 'HTCONDOR_POOL_PASSWORD') }}"
+
+# NuDocker configuration
+nudocker_version: "2.0"
+
+# Timezone
+timezone: "UTC"
