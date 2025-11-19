@@ -1,0 +1,28 @@
+# Stage 2: Packer Variables Example
+# Copy this file to variables.pkrvars.hcl and customize
+
+# OpenStack cloud name (from ~/.config/openstack/clouds.yaml)
+cloud_name = "hun-ren-cloud"
+
+# Source image (base Ubuntu image)
+# Check available images: openstack image list | grep -i ubuntu
+source_image_name = "ubuntu-22.04"
+
+# VM flavor for build (need 4 vCPU, 8 GB RAM for compilation)
+# Check available flavors: openstack flavor list
+flavor = "m1.medium"
+
+# Network ID (optional, use if you have specific network)
+# Find with: openstack network list
+# Leave empty ("") to use default
+network_id = ""
+
+# Floating IP network name (usually "public" or "external")
+# Check with: openstack network list --external
+floating_ip_network_name = "public"
+
+# SSH username (usually "ubuntu" for Ubuntu images)
+ssh_username = "ubuntu"
+
+# Output image name (timestamp will be appended)
+image_name = "nudocker-test-stage2"

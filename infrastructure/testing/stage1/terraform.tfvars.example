@@ -1,0 +1,32 @@
+# Stage 1: Example Configuration
+# Copy this file to terraform.tfvars and customize for your HUN-REN cloud environment
+
+# OpenStack cloud name (from ~/.config/openstack/clouds.yaml)
+cloud_name = "hun-ren-cloud"
+
+# Resource naming prefix
+prefix = "nudocker-test"
+
+# Ubuntu image name (check available images with: openstack image list)
+# Common options: "ubuntu-22.04", "Ubuntu 22.04 LTS", "ubuntu-jammy"
+image_name = "ubuntu-22.04"
+
+# VM flavor (check available flavors with: openstack flavor list)
+# For Stage 1 we need minimal resources: 2 vCPU, 4 GB RAM
+# Common options: "m1.small", "standard.small", "c1.small"
+flavor_name = "m1.small"
+
+# Network name (check networks with: openstack network list)
+# Usually something like "private", "internal", or "tenant-network"
+network_name = "private"
+
+# External network name for floating IPs (usually "public" or "external")
+# Check with: openstack network list --external
+external_network_name = "public"
+
+# SSH key pair name (must be uploaded to OpenStack first)
+# Upload with: openstack keypair create --public-key ~/.ssh/id_rsa.pub my-keypair
+key_pair_name = "my-keypair"
+
+# Path to your SSH private key (for connection testing)
+ssh_private_key_path = "~/.ssh/id_rsa"

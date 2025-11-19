@@ -1,0 +1,31 @@
+# Stage 3: Example Configuration
+# Copy this file to terraform.tfvars and customize
+
+# OpenStack cloud name (from ~/.config/openstack/clouds.yaml)
+cloud_name = "hun-ren-cloud"
+
+# Resource naming prefix
+prefix = "nudocker-test"
+
+# Custom image name from Stage 2
+# Find with: openstack image list | grep nudocker-test-stage2
+# Use the most recent image name including timestamp
+custom_image_name = "nudocker-test-stage2-20251119-1430"
+
+# VM flavor (check available flavors with: openstack flavor list)
+# For Stage 3 we need 4 vCPU, 8 GB RAM for HTCondor + jobs
+# Common options: "m1.medium", "standard.medium", "c1.medium"
+flavor_name = "m1.medium"
+
+# Network name (check networks with: openstack network list)
+network_name = "private"
+
+# External network name for floating IPs
+# Check with: openstack network list --external
+external_network_name = "public"
+
+# SSH key pair name (must be uploaded to OpenStack)
+key_pair_name = "my-keypair"
+
+# Path to your SSH private key (for testing)
+ssh_private_key_path = "~/.ssh/id_rsa"

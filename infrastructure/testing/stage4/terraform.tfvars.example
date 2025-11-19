@@ -1,0 +1,25 @@
+# Stage 4: Example Configuration
+# Copy this file to terraform.tfvars and customize
+
+# OpenStack cloud name
+cloud_name = "hun-ren-cloud"
+
+# Resource naming prefix
+prefix = "nudocker-test"
+
+# Custom image name from Stage 2
+custom_image_name = "nudocker-test-stage2-20251119-1430"
+
+# Central manager flavor (2 vCPU, 4 GB RAM recommended)
+central_flavor = "m1.small"
+
+# Execute node flavor (4 vCPU, 8 GB RAM recommended)
+execute_flavor = "m1.medium"
+
+# Network configuration
+network_name = "private"
+external_network_name = "public"
+
+# SSH key pair
+key_pair_name = "my-keypair"
+ssh_private_key_path = "~/.ssh/id_rsa"
