@@ -1,0 +1,489 @@
+---
+# NuDocker Cluster Configuration Playbook - IMPROVED
+# Based on proven patterns from htcondor-slurm-demo
+# Configures HTCondor + SLURM dual-scheduler cluster
+
+- name: Setup SSH keys across cluster
+  hosts: all
+  become: no
+  gather_facts: yes
+  tags: ['ssh', 'setup']
+
+  tasks:
+    - name: Ensure .ssh directory exists
+      file:
+        path: ~/.ssh
+        state: directory
+        mode: '0700'
+
+    - name: Generate SSH key pair on central manager
+      openssh_keypair:
+        path: ~/.ssh/id_rsa
+        size: 2048
+        type: rsa
+      when: inventory_hostname in groups['central_manager']
+      register: central_keypair
+
+    - name: Get central manager public key
+      slurp:
+        src: ~/.ssh/id_rsa.pub
+      when: inventory_hostname in groups['central_manager']
+      register: central_public_key
+
+    - name: Store central manager public key as fact
+      set_fact:
+        central_manager_public_key: "{{ central_public_key.content | b64decode | trim }}"
+      when: inventory_hostname in groups['central_manager']
+
+    - name: Distribute central manager public key to all nodes
+      authorized_key:
+        user: ubuntu
+        key: "{{ hostvars[groups['central_manager'][0]]['central_manager_public_key'] }}"
+        state: present
+      when: hostvars[groups['central_manager'][0]]['central_manager_public_key'] is defined
+
+# ==============================================================================
+# HTCondor Central Manager Configuration
+# ==============================================================================
+
+- name: Configure HTCondor Central Manager
+  hosts: central_manager
+  become: yes
+  tags: ['htcondor', 'central-manager']
+
+  tasks:
+    - name: Get central manager private IP
+      set_fact:
+        central_manager_ip: "{{ hostvars[inventory_hostname]['private_ip'] }}"
+
+    - name: Create HTCondor configuration directory
+      file:
+        path: /etc/condor/config.d
+        state: directory
+        owner: condor
+        group: condor
+        mode: '0755'
+
+    - name: Configure HTCondor Central Manager
+      copy:
+        dest: /etc/condor/config.d/10-central-manager.conf
+        content: |
+          # HTCondor Central Manager Configuration
+          DAEMON_LIST = MASTER, COLLECTOR, NEGOTIATOR, SCHEDD, SHARED_PORT
+
+          # Network settings
+          CONDOR_HOST = {{ central_manager_ip }}
+          COLLECTOR_HOST = $(CONDOR_HOST):9618
+
+          # Security settings (pool password)
+          SEC_DEFAULT_AUTHENTICATION = OPTIONAL
+          SEC_DEFAULT_ENCRYPTION = OPTIONAL
+          SEC_DEFAULT_INTEGRITY = OPTIONAL
+          SEC_PASSWORD_FILE = /etc/condor/pool_password
+
+          # Shared port for firewall friendliness
+          USE_SHARED_PORT = TRUE
+          SHARED_PORT_DAEMON_AD_FILE = $(LOG)/shared_port_ad
+
+          # Pool settings
+          CONDOR_ADMIN = ubuntu@localhost
+          UID_DOMAIN = $(CONDOR_HOST)
+          FILESYSTEM_DOMAIN = $(CONDOR_HOST)
+
+          # Schedd settings for job submission
+          SCHEDD_NAME = NuDocker-Central-Schedd
+          MAX_JOBS_RUNNING = 1000
+          MAX_JOBS_IDLE = 10000
+
+          # Docker Universe support
+          DOCKER = /usr/bin/docker
+          DOCKER_VOLUMES = /storage:/storage:rw
+          DOCKER_MOUNT_VOLUMES = /storage
+        owner: condor
+        group: condor
+        mode: '0644'
+
+    - name: Create pool password
+      copy:
+        dest: /etc/condor/pool_password
+        content: "nudocker_pool_secret_2025"
+        owner: condor
+        group: condor
+        mode: '0600'
+
+    - name: Start and enable HTCondor
+      systemd:
+        name: condor
+        state: restarted
+        enabled: yes
+
+# ==============================================================================
+# HTCondor Execute Nodes Configuration
+# ==============================================================================
+
+- name: Configure HTCondor Execute Nodes
+  hosts: htcondor_execute
+  become: yes
+  tags: ['htcondor', 'execute']
+
+  tasks:
+    - name: Get central manager IP
+      set_fact:
+        central_manager_ip: "{{ hostvars[groups['central_manager'][0]]['private_ip'] }}"
+
+    - name: Configure HTCondor Execute Nodes
+      copy:
+        dest: /etc/condor/config.d/10-execute-node.conf
+        content: |
+          # HTCondor Execute Node Configuration
+          DAEMON_LIST = MASTER, STARTD, SHARED_PORT
+
+          # Connect to Central Manager
+          CONDOR_HOST = {{ central_manager_ip }}
+          COLLECTOR_HOST = $(CONDOR_HOST):9618
+
+          # Security settings
+          SEC_DEFAULT_AUTHENTICATION = OPTIONAL
+          SEC_DEFAULT_ENCRYPTION = OPTIONAL
+          SEC_DEFAULT_INTEGRITY = OPTIONAL
+          SEC_PASSWORD_FILE = /etc/condor/pool_password
+
+          # Resource settings (auto-detect)
+          NUM_CPUS = auto
+          MEMORY = auto
+          DISK = auto
+
+          # Job execution settings
+          START = TRUE
+          SUSPEND = FALSE
+          PREEMPT = FALSE
+          KILL = FALSE
+
+          # Shared port
+          USE_SHARED_PORT = TRUE
+
+          # Docker Universe support
+          DOCKER = /usr/bin/docker
+          DOCKER_VOLUMES = /storage:/storage:rw
+          DOCKER_MOUNT_VOLUMES = /storage
+        owner: condor
+        group: condor
+        mode: '0644'
+
+    - name: Copy pool password
+      copy:
+        dest: /etc/condor/pool_password
+        content: "nudocker_pool_secret_2025"
+        owner: condor
+        group: condor
+        mode: '0600'
+
+    - name: Start and enable HTCondor
+      systemd:
+        name: condor
+        state: restarted
+        enabled: yes
+
+# ==============================================================================
+# SLURM Controller Configuration (on Central Manager)
+# ==============================================================================
+
+- name: Configure SLURM Controller
+  hosts: central_manager
+  become: yes
+  tags: ['slurm', 'controller']
+
+  tasks:
+    - name: Create munge key
+      shell: |
+        if [ ! -f /etc/munge/munge.key ]; then
+          dd if=/dev/urandom bs=1 count=1024 > /etc/munge/munge.key
+          chown munge:munge /etc/munge/munge.key
+          chmod 400 /etc/munge/munge.key
+        fi
+      args:
+        creates: /etc/munge/munge.key
+
+    - name: Read munge key
+      slurp:
+        src: /etc/munge/munge.key
+      register: munge_key_content
+
+    - name: Create SLURM configuration
+      template:
+        dest: /etc/slurm/slurm.conf
+        content: |
+          # SLURM Configuration for NuDocker
+          ClusterName=nudocker
+          ControlMachine={{ inventory_hostname }}
+          ControlAddr={{ hostvars[inventory_hostname]['private_ip'] }}
+
+          # Authentication
+          AuthType=auth/munge
+
+          # Scheduling
+          SchedulerType=sched/backfill
+          SelectType=select/cons_tres
+          SelectTypeParameters=CR_Core
+
+          # Logging and accounting
+          SlurmUser=slurm
+          SlurmdUser=root
+          SlurmctldLogFile=/var/log/slurm-llnl/slurmctld.log
+          SlurmdLogFile=/var/log/slurm-llnl/slurmd.log
+          JobCompType=jobcomp/none
+          AccountingStorageType=accounting_storage/none
+
+          # Process tracking
+          ProctrackType=proctrack/pgid
+
+          # Node definitions
+          {% for host in groups['slurm_compute'] %}
+          NodeName={{ host }} CPUs=8 RealMemory=30000 State=UNKNOWN
+          {% endfor %}
+
+          # Partition definition
+          PartitionName=compute Nodes={% for host in groups['slurm_compute'] %}{{ host }}{% if not loop.last %},{% endif %}{% endfor %} Default=YES MaxTime=INFINITE State=UP
+        owner: slurm
+        group: slurm
+        mode: '0644'
+
+    - name: Start and enable munge
+      systemd:
+        name: munge
+        state: restarted
+        enabled: yes
+
+    - name: Start and enable SLURM controller
+      systemd:
+        name: slurmctld
+        state: restarted
+        enabled: yes
+
+# ==============================================================================
+# SLURM Compute Nodes Configuration
+# ==============================================================================
+
+- name: Configure SLURM Compute Nodes
+  hosts: slurm_compute
+  become: yes
+  tags: ['slurm', 'compute']
+
+  tasks:
+    - name: Create munge key from controller
+      copy:
+        dest: /etc/munge/munge.key
+        content: "{{ hostvars[groups['central_manager'][0]]['munge_key_content']['content'] | b64decode }}"
+        owner: munge
+        group: munge
+        mode: '0400'
+
+    - name: Fetch SLURM configuration from controller
+      fetch:
+        src: /etc/slurm/slurm.conf
+        dest: /tmp/slurm.conf
+        flat: yes
+      delegate_to: "{{ groups['central_manager'][0] }}"
+      run_once: yes
+
+    - name: Copy SLURM configuration
+      copy:
+        src: /tmp/slurm.conf
+        dest: /etc/slurm/slurm.conf
+        owner: slurm
+        group: slurm
+        mode: '0644'
+
+    - name: Start and enable munge
+      systemd:
+        name: munge
+        state: restarted
+        enabled: yes
+
+    - name: Start and enable SLURM daemon
+      systemd:
+        name: slurmd
+        state: restarted
+        enabled: yes
+
+# ==============================================================================
+# NFS Server Configuration (on Central Manager)
+# ==============================================================================
+
+- name: Configure NFS Server
+  hosts: central_manager
+  become: yes
+  tags: ['nfs', 'storage']
+
+  tasks:
+    - name: Install NFS server
+      apt:
+        name: nfs-kernel-server
+        state: present
+
+    - name: Create storage directory
+      file:
+        path: /storage
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Create storage subdirectories
+      file:
+        path: "/storage/{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+      loop:
+        - mesa
+        - containers
+        - htcondor_jobs
+        - slurm_jobs
+        - results
+        - users
+
+    - name: Configure NFS exports
+      copy:
+        dest: /etc/exports
+        content: |
+          /storage *(rw,sync,no_subtree_check,no_root_squash)
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Export NFS shares
+      shell: exportfs -ra
+
+    - name: Start and enable NFS server
+      systemd:
+        name: nfs-kernel-server
+        state: restarted
+        enabled: yes
+
+# ==============================================================================
+# NFS Client Configuration (on all worker nodes)
+# ==============================================================================
+
+- name: Configure NFS Clients
+  hosts: htcondor_execute:slurm_compute
+  become: yes
+  tags: ['nfs', 'storage']
+
+  tasks:
+    - name: Create storage mount point
+      file:
+        path: /storage
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Mount NFS storage
+      mount:
+        path: /storage
+        src: "{{ hostvars[groups['central_manager'][0]]['private_ip'] }}:/storage"
+        fstype: nfs
+        opts: defaults
+        state: mounted
+
+# ==============================================================================
+# Deploy NuDocker Scripts and Containers
+# ==============================================================================
+
+- name: Deploy NuDocker Resources
+  hosts: central_manager
+  become: yes
+  tags: ['nudocker', 'deployment']
+
+  tasks:
+    - name: Clone NuDocker repository
+      git:
+        repo: 'https://github.com/NuGrid/NuDocker.git'
+        dest: /opt/nudocker
+        version: main
+      become_user: ubuntu
+
+    - name: Copy HTCondor scripts to shared storage
+      copy:
+        src: /opt/nudocker/htcondor_scripts/
+        dest: /storage/htcondor_jobs/
+        remote_src: yes
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy SLURM scripts to shared storage
+      copy:
+        src: /opt/nudocker/slurm_scripts/
+        dest: /storage/slurm_jobs/
+        remote_src: yes
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Pull NuDocker Docker images
+      docker_image:
+        name: "{{ item }}"
+        source: pull
+      loop:
+        - nugrid/nudome:16.0
+        - nugrid/nudome:18.0
+        - nugrid/nudome:20.031a
+        - nugrid/nudome:20.1a
+
+    - name: Convert Docker images to Singularity
+      shell: |
+        if [ ! -f /storage/containers/{{ item.sif }} ]; then
+          singularity build /storage/containers/{{ item.sif }} docker://{{ item.image }}
+          chown ubuntu:ubuntu /storage/containers/{{ item.sif }}
+        fi
+      loop:
+        - { image: 'nugrid/nudome:16.0', sif: 'nudome_16.0.sif' }
+        - { image: 'nugrid/nudome:18.0', sif: 'nudome_18.0.sif' }
+        - { image: 'nugrid/nudome:20.031a', sif: 'nudome_20.031.sif' }
+        - { image: 'nugrid/nudome:20.1a', sif: 'nudome_20.1.sif' }
+      args:
+        creates: "/storage/containers/{{ item.sif }}"
+
+# ==============================================================================
+# Cluster Verification
+# ==============================================================================
+
+- name: Verify Cluster Configuration
+  hosts: central_manager
+  become: no
+  tags: ['verify']
+
+  tasks:
+    - name: Wait for HTCondor pool to stabilize
+      pause:
+        seconds: 30
+
+    - name: Check HTCondor pool status
+      shell: condor_status -total
+      register: condor_status
+      changed_when: false
+
+    - name: Display HTCondor status
+      debug:
+        var: condor_status.stdout_lines
+
+    - name: Check SLURM cluster status
+      shell: sinfo
+      register: slurm_status
+      changed_when: false
+
+    - name: Display SLURM status
+      debug:
+        var: slurm_status.stdout_lines
+
+    - name: Verify NFS mounts
+      shell: df -h | grep storage
+      register: nfs_mounts
+      changed_when: false
+
+    - name: Display NFS mounts
+      debug:
+        var: nfs_mounts.stdout_lines
