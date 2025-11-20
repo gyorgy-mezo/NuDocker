@@ -16,7 +16,8 @@ terraform {
 }
 
 provider "openstack" {
-  cloud = var.cloud_name
+  # Using environment variables for authentication (OS_*)
+  # No cloud name needed when using app-cred-bridge-openrc.sh
 }
 
 # Data source: Get custom image from Stage 2
@@ -98,7 +99,6 @@ resource "openstack_networking_secgroup_rule_v2" "stage4_rpcbind" {
 # Central Manager VM
 resource "openstack_compute_instance_v2" "central_manager" {
   name        = "${var.prefix}-stage4-central"
-  image_id    = data.openstack_images_image_v2.nudocker_test.id
   flavor_name = var.central_flavor
 
   key_pair = var.key_pair_name
@@ -118,6 +118,16 @@ resource "openstack_compute_instance_v2" "central_manager" {
     Purpose     = "Multi-node cluster test"
     Project     = "NuDocker"
     ManagedBy   = "Terraform"
+  }
+
+  # HUN-REN Cloud requires volume-backed instances
+  block_device {
+    uuid                  = data.openstack_images_image_v2.nudocker_test.id
+    source_type           = "image"
+    destination_type      = "volume"
+    boot_index            = 0
+    volume_size           = 50
+    delete_on_termination = true
   }
 
   # Configure as central manager + NFS server
@@ -198,7 +208,6 @@ EOS
 # Execute Node VM
 resource "openstack_compute_instance_v2" "execute_node" {
   name        = "${var.prefix}-stage4-execute"
-  image_id    = data.openstack_images_image_v2.nudocker_test.id
   flavor_name = var.execute_flavor
 
   key_pair = var.key_pair_name
@@ -218,6 +227,16 @@ resource "openstack_compute_instance_v2" "execute_node" {
     Purpose     = "Multi-node cluster test"
     Project     = "NuDocker"
     ManagedBy   = "Terraform"
+  }
+
+  # HUN-REN Cloud requires volume-backed instances
+  block_device {
+    uuid                  = data.openstack_images_image_v2.nudocker_test.id
+    source_type           = "image"
+    destination_type      = "volume"
+    boot_index            = 0
+    volume_size           = 50
+    delete_on_termination = true
   }
 
   # Wait for central manager to be ready
@@ -257,9 +276,13 @@ SEC_DEFAULT_AUTHENTICATION = OPTIONAL
 SEC_DEFAULT_INTEGRITY = OPTIONAL
 SEC_DEFAULT_ENCRYPTION = OPTIONAL
 
-# Execute node configuration
+# Resource limits (explicit values required for HUN-REN Cloud)
+NUM_CPUS = 4
+MEMORY = 8192
+
+# Execute node configuration (1 CPU per slot to avoid over-allocation)
 NUM_SLOTS = 4
-SLOT_TYPE_1 = cpus=100%,ram=100%,disk=100%
+SLOT_TYPE_1 = cpus=1
 NUM_SLOTS_TYPE_1 = 4
 
 # Shared filesystem
