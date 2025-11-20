@@ -15,7 +15,8 @@ terraform {
 }
 
 provider "openstack" {
-  cloud = var.cloud_name
+  # Using environment variables for authentication (OS_*)
+  # No cloud name needed when using app-cred-bridge-openrc.sh
 }
 
 # Data source: Get Ubuntu 22.04 image
@@ -43,7 +44,6 @@ resource "openstack_networking_secgroup_rule_v2" "stage1_ssh_ingress" {
 # Single test VM
 resource "openstack_compute_instance_v2" "test_vm" {
   name        = "${var.prefix}-stage1-test"
-  image_id    = data.openstack_images_image_v2.ubuntu_2204.id
   flavor_name = var.flavor_name
 
   key_pair = var.key_pair_name
@@ -62,6 +62,16 @@ resource "openstack_compute_instance_v2" "test_vm" {
     Purpose     = "Basic provisioning test"
     Project     = "NuDocker"
     ManagedBy   = "Terraform"
+  }
+
+  # HUN-REN Cloud requires volume-backed instances
+  block_device {
+    uuid                  = data.openstack_images_image_v2.ubuntu_2204.id
+    source_type           = "image"
+    destination_type      = "volume"
+    boot_index            = 0
+    volume_size           = 20
+    delete_on_termination = true
   }
 }
 
@@ -103,6 +113,6 @@ output "verification_commands" {
     ssh -i ${var.ssh_private_key_path} ubuntu@${openstack_networking_floatingip_v2.test_vm_fip.address} 'hostname && uptime'
 
     # Check VM info:
-    openstack --os-cloud ${var.cloud_name} server show ${openstack_compute_instance_v2.test_vm.id}
+    openstack server show ${openstack_compute_instance_v2.test_vm.id}
   EOT
 }
