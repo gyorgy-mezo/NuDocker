@@ -16,7 +16,8 @@ terraform {
 }
 
 provider "openstack" {
-  cloud = var.cloud_name
+  # Using environment variables for authentication (OS_*)
+  # No cloud name needed when using app-cred-bridge-openrc.sh
 }
 
 # Data source: Get custom image built in Stage 2
@@ -66,7 +67,6 @@ resource "openstack_networking_secgroup_rule_v2" "stage3_htcondor_range" {
 # Single HTCondor node (acts as central manager + execute node)
 resource "openstack_compute_instance_v2" "htcondor_standalone" {
   name        = "${var.prefix}-stage3-htcondor"
-  image_id    = data.openstack_images_image_v2.nudocker_test.id
   flavor_name = var.flavor_name
 
   key_pair = var.key_pair_name
@@ -85,6 +85,16 @@ resource "openstack_compute_instance_v2" "htcondor_standalone" {
     Purpose     = "Single-node HTCondor test"
     Project     = "NuDocker"
     ManagedBy   = "Terraform"
+  }
+
+  # HUN-REN Cloud requires volume-backed instances
+  block_device {
+    uuid                  = data.openstack_images_image_v2.nudocker_test.id
+    source_type           = "image"
+    destination_type      = "volume"
+    boot_index            = 0
+    volume_size           = 40
+    delete_on_termination = true
   }
 
   # Create working directory and HTCondor configuration
