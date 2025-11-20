@@ -1,0 +1,82 @@
+# Optimized NuDocker Image Build System
+# Builds MESA containerized environments with specific Ubuntu/MESA SDK combinations
+#
+# Usage: make nudome16 | nudome18 | nudome20.031 | nudome20.1 | numppnp
+
+# Common configuration
+DOCKER_BUILD_FLAGS := --progress=plain --no-cache
+DOCKER_BUILDKIT := 1
+
+# Image registry
+REGISTRY := nugrid/nudome
+
+# Template selection
+TEMPLATE_DEFAULT := Dockerfile_template
+TEMPLATE_20 := Dockerfile_template.20
+TEMPLATE_MPPNP := Dockerfile_template_mppnp
+
+# Build function - DRY principle
+# Usage: $(call build_image,ubuntu_ver,mesa_ver,image_tag,template,zenodo_id)
+define build_image
+	@echo "Building $(4) with Ubuntu $(1), MESA SDK $(2)"
+	@sed -e 's/mm\.nn/$(1)/' \
+	     -e 's/yyyymmdd/$(2)/' \
+	     -e 's/zzzzzzz/$(5)/' \
+	     $(3) > Dockerfile
+	@DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build -t $(REGISTRY):$(4) .
+	@echo "✓ Built $(REGISTRY):$(4)"
+endef
+
+# Ubuntu 16.04 - MESA r8118-r10398
+nudome16:
+	$(call build_image,16.04,20160129,$(TEMPLATE_DEFAULT),16.0,2603154)
+
+# Ubuntu 18.04 - MESA r10000-r12115
+nudome18:
+	$(call build_image,18.04,20180822,$(TEMPLATE_DEFAULT),18.0,2603170)
+
+# Ubuntu 18.04 - MPPNP variant (HDF5, OpenMPI, NuSE)
+numppnp:
+	$(call build_image,18.04,20180822,$(TEMPLATE_MPPNP),mppnp,2603170)
+
+# Ubuntu 20.04 - MESA r12778 (MESA SDK 20.3.1)
+nudome20.031:
+	$(call build_image,20.04,20.3.1,$(TEMPLATE_20),20.031a,)
+
+# Ubuntu 20.04 - MESA r15140+ (MESA SDK 21.4.1)
+nudome20.1:
+	$(call build_image,20.04,21.4.1,$(TEMPLATE_20),20.1a,)
+
+# Ubuntu 12.04 - DEPRECATED (Ubuntu 12.04 past LTS)
+# See branch "template 14" for legacy build
+nudome14:
+	@echo "⚠️  nudome14 is deprecated (Ubuntu 12.04 past LTS)"
+	@echo "See branch 'template 14' for legacy build"
+	@exit 1
+
+# Custom build template
+nudomexx:
+	@echo "Edit this target with your custom values before building"
+	$(call build_image,20.04,20.3.1,$(TEMPLATE_DEFAULT),custom,2630796)
+
+# Build all active images
+all: nudome16 nudome18 nudome20.031 nudome20.1 numppnp
+
+# Clean generated Dockerfiles
+clean:
+	rm -f Dockerfile
+
+# Show available targets
+help:
+	@echo "NuDocker Build Targets:"
+	@echo "  nudome16      - Ubuntu 16.04 + MESA SDK 20160129"
+	@echo "  nudome18      - Ubuntu 18.04 + MESA SDK 20180822"
+	@echo "  nudome20.031  - Ubuntu 20.04 + MESA SDK 20.3.1"
+	@echo "  nudome20.1    - Ubuntu 20.04 + MESA SDK 21.4.1"
+	@echo "  numppnp       - MPPNP variant (HDF5/OpenMPI/NuSE)"
+	@echo "  all           - Build all active images"
+	@echo "  clean         - Remove generated Dockerfiles"
+	@echo ""
+	@echo "Custom builds: Edit 'nudomexx' target with your values"
+
+.PHONY: nudome16 nudome18 nudome20.031 nudome20.1 numppnp nudome14 nudomexx all clean help

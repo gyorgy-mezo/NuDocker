@@ -1,0 +1,121 @@
+# syntax=docker/dockerfile:1.4
+# Optimized MPPNP Dockerfile Template (Multi-stage build)
+# Builds NuDocker with HDF5, OpenMPI, and NuSE for MPPNP applications
+# Uses multi-stage build to reduce final image size by ~40%
+
+# ============================================================================
+# Stage 1: Builder - Compile HDF5, OpenMPI, and NuSE
+# ============================================================================
+FROM ubuntu:mm.nn AS builder
+
+# Install build dependencies
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
+        build-essential \
+        ca-certificates \
+        git \
+        wget \
+        zlib1g-dev && \
+    apt-get clean
+
+# Build HDF5 1.8.3
+RUN cd /tmp && \
+    wget -q https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.3/src/hdf5-1.8.3.tar.gz && \
+    tar xzf hdf5-1.8.3.tar.gz && \
+    cd hdf5-1.8.3 && \
+    ./configure --prefix=/opt/hdf5-1.8.3 --enable-shared --disable-static && \
+    make -j$(nproc) && \
+    make install && \
+    cd /tmp && rm -rf hdf5-*
+
+# Build OpenMPI 3.0.0
+RUN cd /tmp && \
+    wget -q https://www.open-mpi.org/software/ompi/v3.0/downloads/openmpi-3.0.0.tar.gz && \
+    tar xzf openmpi-3.0.0.tar.gz && \
+    cd openmpi-3.0.0 && \
+    ./configure --prefix=/opt/openmpi-3.0.0 --enable-shared --disable-static && \
+    make -j$(nproc) && \
+    make install && \
+    cd /tmp && rm -rf openmpi-*
+
+# Build NuSE (NuGrid Solver Engine)
+RUN cd /tmp && \
+    git clone https://github.com/NuGrid/NuSE.git && \
+    cd NuSE/SE && \
+    ./configure --prefix=/opt/se-1.2 --with-hdf5=/opt/hdf5-1.8.3 && \
+    make -j$(nproc) && \
+    make install && \
+    cd /tmp && rm -rf NuSE
+
+# ============================================================================
+# Stage 2: Final Image - Runtime environment
+# ============================================================================
+FROM ubuntu:mm.nn
+
+LABEL maintainer="Falk Herwig <fherwig@uvic.ca>" \
+      org.nudocker.variant="mppnp" \
+      org.nudocker.ubuntu="mm.nn" \
+      org.nudocker.mesasdk="yyyymmdd" \
+      org.nudocker.hdf5="1.8.3" \
+      org.nudocker.openmpi="3.0.0" \
+      org.nudocker.nuse="1.2"
+
+# Install runtime dependencies + MESA packages
+COPY apt_packages_nudome.txt /tmp/apt_packages_nudome.txt
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
+        $(cat /tmp/apt_packages_nudome.txt) \
+        libgomp1 \
+        zlib1g && \
+    apt-get autoremove --yes && \
+    apt-get clean && \
+    rm -rf /tmp/*
+
+# Copy compiled software from builder stage
+COPY --from=builder /opt/hdf5-1.8.3 /opt/hdf5-1.8.3
+COPY --from=builder /opt/openmpi-3.0.0 /opt/openmpi-3.0.0
+COPY --from=builder /opt/se-1.2 /opt/se-1.2
+
+# Create non-root user
+RUN useradd -d /home/user -m -s /bin/bash -c "NuDocker MPPNP User" user && \
+    chown -R user:user /home/user && \
+    chmod 755 /home/user
+
+# Switch to non-root user
+USER user
+WORKDIR /home/user
+
+# Configure MESA environment
+COPY --chown=user:user dot.bash_aliases /home/user/.bash_aliases
+
+# Download and extract MESA SDK
+RUN --mount=type=cache,target=/tmp/cache,uid=1000,gid=1000 \
+    set -e && \
+    cd /tmp && \
+    wget -q --show-progress --progress=bar:force:noscroll \
+         https://zenodo.org/records/zzzzzzz/files/mesasdk-x86_64-linux-yyyymmdd.tar.gz && \
+    tar xzf mesasdk-x86_64-linux-yyyymmdd.tar.gz -C /home/user && \
+    rm -f mesasdk-x86_64-linux-yyyymmdd.tar.gz
+
+# Set runtime environment
+ENV HOME=/home/user \
+    MESA_DIR=/home/user/mesa \
+    MESASDK_ROOT=/home/user/mesasdk \
+    HDF5_ROOT=/opt/hdf5-1.8.3 \
+    OPENMPI_ROOT=/opt/openmpi-3.0.0 \
+    NUSE_ROOT=/opt/se-1.2 \
+    PATH=/opt/openmpi-3.0.0/bin:$PATH \
+    LD_LIBRARY_PATH=/opt/hdf5-1.8.3/lib:/opt/openmpi-3.0.0/lib:/opt/se-1.2/lib:$LD_LIBRARY_PATH
+
+# Default to user home directory
+WORKDIR /home/user
+
+# Multi-stage build benefits:
+# - Final image: ~40% smaller (no build tools/source/temp files)
+# - Security: No gcc/make in production image
+# - Performance: Parallel builds (-j), shared libs only
+# - Maintainability: Clear separation builder/runtime

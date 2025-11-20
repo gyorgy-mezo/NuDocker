@@ -1,0 +1,53 @@
+# syntax=docker/dockerfile:1.4
+# Optimized NuDocker Dockerfile Template
+# Builds containerized MESA environment with Ubuntu mm.nn + MESA SDK yyyymmdd
+
+FROM ubuntu:mm.nn
+
+LABEL maintainer="Falk Herwig <fherwig@uvic.ca>" \
+      org.nudocker.ubuntu="mm.nn" \
+      org.nudocker.mesasdk="yyyymmdd" \
+      org.nudocker.zenodo="zzzzzzz"
+
+# Install packages in single layer with cleanup
+COPY apt_packages_nudome.txt /tmp/apt_packages_nudome.txt
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
+        $(cat /tmp/apt_packages_nudome.txt) && \
+    apt-get autoremove --yes && \
+    apt-get clean && \
+    rm -rf /tmp/*
+
+# Create non-root user with proper permissions
+RUN useradd -d /home/user -m -s /bin/bash -c "NuDocker User" user && \
+    chown -R user:user /home/user && \
+    chmod 755 /home/user
+
+# Switch to non-root user for MESA SDK installation
+USER user
+WORKDIR /home/user
+
+# Download and extract MESA SDK with error handling
+RUN --mount=type=cache,target=/tmp/cache,uid=1000,gid=1000 \
+    set -e && \
+    cd /tmp && \
+    wget -q --show-progress --progress=bar:force:noscroll \
+         https://zenodo.org/records/zzzzzzz/files/mesasdk-x86_64-linux-yyyymmdd.tar.gz && \
+    tar xzf mesasdk-x86_64-linux-yyyymmdd.tar.gz -C /home/user && \
+    rm -f mesasdk-x86_64-linux-yyyymmdd.tar.gz
+
+# Configure MESA environment
+COPY --chown=user:user dot.bash_aliases /home/user/.bash_aliases
+
+# Set runtime configuration
+ENV HOME=/home/user \
+    MESA_DIR=/home/user/mesa \
+    MESASDK_ROOT=/home/user/mesasdk
+
+# Default to user home directory
+WORKDIR /home/user
+
+# Document exposed functionality (no ports needed for MESA)
+# Volume mounts expected: /home/user/mesa (MESA source), /home/user/mnt (output)
