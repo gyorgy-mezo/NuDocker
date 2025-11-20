@@ -142,33 +142,41 @@ resource "openstack_compute_instance_v2" "central_manager" {
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y nfs-kernel-server
 
-    # Create shared storage
-    mkdir -p /storage/{htcondor_jobs,results,config}
-    chown -R ubuntu:ubuntu /storage
-
-    # Configure NFS exports
-    echo "/storage *(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
+    # Configure NFS exports for /home
+    echo "/home 192.168.0.0/24(rw,sync,no_subtree_check,no_root_squash)" > /etc/exports
     exportfs -ra
+    systemctl enable nfs-kernel-server
     systemctl restart nfs-kernel-server
 
     # Configure HTCondor as central manager
     cat > /etc/condor/config.d/50-central.config <<EOC
-# Central Manager configuration
-CONDOR_HOST = $INTERNAL_IP
-DAEMON_LIST = COLLECTOR, MASTER, NEGOTIATOR, SCHEDD
+# Central Manager configuration for HUN-REN Cloud
+# Explicit resource detection (auto-detection fails in HUN-REN environment)
 
-# Network settings
-ALLOW_WRITE = *
+# Resource limits (for 2 vCPU, 4 GB RAM flavor)
+NUM_CPUS = 2
+MEMORY = 4096
+
+# This is a central manager
+DAEMON_LIST = MASTER, COLLECTOR, NEGOTIATOR, SCHEDD
+
+# Network configuration
+CONDOR_HOST = \$(FULL_HOSTNAME)
+NETWORK_INTERFACE = $INTERNAL_IP
+CONDOR_VIEW_HOST = \$(CONDOR_HOST)
+
+# Allow all communication (required for execute nodes to register)
 ALLOW_READ = *
-ALLOW_ADMINISTRATOR = *
+ALLOW_WRITE = *
 ALLOW_NEGOTIATOR = *
-ALLOW_CONFIG = *
+ALLOW_ADMINISTRATOR = *
 ALLOW_DAEMON = *
+HOSTALLOW_WRITE = *
 
-# Security (permissive for testing)
+# Security settings
 SEC_DEFAULT_AUTHENTICATION = OPTIONAL
-SEC_DEFAULT_INTEGRITY = OPTIONAL
-SEC_DEFAULT_ENCRYPTION = OPTIONAL
+SEC_DEFAULT_AUTHENTICATION_METHODS = FS, PASSWORD, CLAIMTOBE
+SEC_CLIENT_AUTHENTICATION_METHODS = FS, PASSWORD, CLAIMTOBE
 
 # Shared filesystem
 FILESYSTEM_DOMAIN = nudocker-test
@@ -182,24 +190,40 @@ EOC
     systemctl enable condor
     systemctl restart condor
 
+    # Wait for HTCondor to fully start
+    sleep 10
+
     # Create test submit files
     mkdir -p /home/ubuntu/cluster_test
-    cat > /home/ubuntu/cluster_test/distributed_job.sub <<EOS
-# Distributed job across cluster
-universe     = vanilla
-executable   = /bin/hostname
-output       = job_\$(Process).out
-error        = job_\$(Process).err
-log          = distributed.log
+    cat > /home/ubuntu/cluster_test/test_script.sh <<'EOS'
+#!/bin/bash
+echo "Job $1 running on $(hostname) at $(date)"
+sleep 5
+echo "Job $1 completed successfully"
+exit 0
+EOS
+    chmod +x /home/ubuntu/cluster_test/test_script.sh
+
+    cat > /home/ubuntu/cluster_test/distributed_job.sub <<'EOS'
+# Distributed job submission file
+# Uses a script file for clean execution
+
+executable = test_script.sh
+arguments = $(Process)
+
+output = job_$(Process).out
+error = job_$(Process).err
+log = jobs.log
+
+# Request resources
 request_cpus = 1
-request_memory = 512M
-queue 5
+request_memory = 512MB
+
+# Submit 12 jobs to test distribution across 4 slots
+queue 12
 EOS
 
     chown -R ubuntu:ubuntu /home/ubuntu/cluster_test
-
-    # Save central manager IP for execute nodes
-    echo "$INTERNAL_IP" > /storage/config/central_ip.txt
 
     echo "Central Manager configuration complete"
   EOF
@@ -248,39 +272,51 @@ resource "openstack_compute_instance_v2" "execute_node" {
     set -e
 
     # Wait for central manager to be ready
-    sleep 30
+    sleep 60
 
     # Get central manager IP
     CENTRAL_IP="${openstack_compute_instance_v2.central_manager.access_ip_v4}"
 
-    # Mount NFS
-    mkdir -p /storage
-    echo "$CENTRAL_IP:/storage /storage nfs defaults,_netdev 0 0" >> /etc/fstab
+    # Install NFS client
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y nfs-common
+
+    # Mount NFS /home from central manager
+    echo "$CENTRAL_IP:/home /home nfs defaults,_netdev 0 0" >> /etc/fstab
     mount -a
 
     # Verify NFS mount
-    ls /storage || echo "NFS mount failed"
+    df -h | grep home || echo "NFS mount failed"
+
+    # Get execute node internal IP
+    EXECUTE_IP=\$(hostname -I | awk '{print \$1}')
 
     # Configure HTCondor as execute node
     cat > /etc/condor/config.d/50-execute.config <<EOC
-# Execute Node configuration
-CONDOR_HOST = $CENTRAL_IP
-DAEMON_LIST = MASTER, STARTD
+# Execute Node configuration for HUN-REN Cloud
+# Explicit resource detection (auto-detection fails in HUN-REN environment)
 
-# Network settings
-ALLOW_WRITE = *
-ALLOW_READ = *
-
-# Security (permissive for testing)
-SEC_DEFAULT_AUTHENTICATION = OPTIONAL
-SEC_DEFAULT_INTEGRITY = OPTIONAL
-SEC_DEFAULT_ENCRYPTION = OPTIONAL
-
-# Resource limits (explicit values required for HUN-REN Cloud)
+# Resource limits (for 4 vCPU, 8 GB RAM flavor)
 NUM_CPUS = 4
 MEMORY = 8192
 
-# Execute node configuration (1 CPU per slot to avoid over-allocation)
+# This is an execute node
+DAEMON_LIST = MASTER, STARTD
+
+# Point to central manager
+CONDOR_HOST = $CENTRAL_IP
+
+# Network configuration
+NETWORK_INTERFACE = \$EXECUTE_IP
+ALLOW_READ = *
+ALLOW_WRITE = *
+
+# Security settings
+SEC_DEFAULT_AUTHENTICATION = OPTIONAL
+SEC_DEFAULT_AUTHENTICATION_METHODS = FS, PASSWORD, CLAIMTOBE
+SEC_CLIENT_AUTHENTICATION_METHODS = FS, PASSWORD, CLAIMTOBE
+
+# Slot configuration (1 CPU per slot to avoid over-allocation)
 NUM_SLOTS = 4
 SLOT_TYPE_1 = cpus=1
 NUM_SLOTS_TYPE_1 = 4
@@ -291,7 +327,6 @@ UID_DOMAIN = nudocker-test
 
 # Enable Docker Universe
 DOCKER = /usr/bin/docker
-DOCKER_VOLUMES = DOCKER_VOLUME_DIR_STORAGE:/storage:rw
 EOC
 
     # Start HTCondor
