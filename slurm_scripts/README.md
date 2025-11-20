@@ -627,7 +627,6 @@ sbatch --array=1-150%20 04_large_grid.slurm
 | Small test case | 4-8 | 8-16 GB | 1-6 hours | Low mass, simple physics |
 | Standard run | 8-16 | 16-32 GB | 6-24 hours | 1-15 Msun, standard physics |
 | Large model | 16-32 | 32-64 GB | 24-72 hours | >15 Msun, complex physics |
-| MESA compilation | 16 | 32 GB | 0.5-1 hour | One-time cost |
 
 ### Disk Space Requirements
 

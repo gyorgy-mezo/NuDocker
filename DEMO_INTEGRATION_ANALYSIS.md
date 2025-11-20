@@ -369,7 +369,7 @@ sbatch --array=1-150 02_array_mesa_run.slurm
 - SLURM dashboard (slurmrestd + web UI)
 - Job completion notifications
 - Resource utilization tracking
-- Cost estimation tools
+
 - Result aggregation scripts
 
 **Proposed Solution**:
@@ -465,7 +465,6 @@ sbatch --array=1-150 02_array_mesa_run.slurm
 - Real-time cluster status
 - Job completion tracking
 - Resource utilization visualization
-- Cost estimation
 
 ---
 

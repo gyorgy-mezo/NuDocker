@@ -500,7 +500,6 @@ yields = s.get_yields()
 - Total disk: 300-1000 GB
 - Wallclock: 2-5 days (with parallel execution)
 
-### Total Computational Cost
 
 **Combined**:
 - CPU-hours: ~70,000-110,000
@@ -508,10 +507,8 @@ yields = s.get_yields()
 - Total disk: 400-1300 GB
 - Wallclock: 1-3 months (including setup, debugging, validation)
 
-**Cost estimate** (if rented on cloud):
 - AWS c5.9xlarge (36 vCPU): ~$1.50/hour
 - 100,000 CPU-hours ÷ 36 = 2,778 hours
-- Cost: ~$4,000-$5,000 (compute only)
 
 ---
 
