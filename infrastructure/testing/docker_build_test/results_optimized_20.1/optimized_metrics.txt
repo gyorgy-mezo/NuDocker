@@ -1,0 +1,6 @@
+Build Time: 201 seconds (63950((BUILD_TIME / 60)) minutes)
+Image Size: 3.11GB
+Layer Count: 16
+Dockerfile: Dockerfile_template.20.optimized
+VM Flavor: m2.4xlarge (32 vCPU, 64GB RAM)
+Test Date: Thu Nov 20 18:17:39 UTC 2025

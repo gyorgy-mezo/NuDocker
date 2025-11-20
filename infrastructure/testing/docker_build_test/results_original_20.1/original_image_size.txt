@@ -1,0 +1,2 @@
+IMAGE                 ID             DISK USAGE   CONTENT SIZE   EXTRA
+nugrid/nudome:20.1a   5639f95bc1b5        3.3GB             0B        

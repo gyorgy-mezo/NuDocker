@@ -1,0 +1,45 @@
+IMAGE          CREATED              CREATED BY                                      SIZE      COMMENT
+5639f95bc1b5   20 seconds ago       WORKDIR /home/user                              0B        buildkit.dockerfile.v0
+<missing>      20 seconds ago       ENV HOME=/home/user                             0B        buildkit.dockerfile.v0
+<missing>      20 seconds ago       USER user                                       0B        buildkit.dockerfile.v0
+<missing>      20 seconds ago       RUN /bin/sh -c (cd /tmp; wget https://sztaki…   2.16GB    buildkit.dockerfile.v0
+<missing>      41 seconds ago       COPY dot.bash_aliases /home/user/.bash_alias…   229B      buildkit.dockerfile.v0
+<missing>      41 seconds ago       USER user                                       0B        buildkit.dockerfile.v0
+<missing>      41 seconds ago       RUN /bin/sh -c useradd -d /home/user -m -c "…   335kB     buildkit.dockerfile.v0
+<missing>      42 seconds ago       RUN /bin/sh -c rm -rf /var/lib/apt/lists/* /…   0B        buildkit.dockerfile.v0
+<missing>      42 seconds ago       RUN /bin/sh -c apt-get autoremove --yes && a…   0B        buildkit.dockerfile.v0
+<missing>      45 seconds ago       RUN /bin/sh -c apt-get -y install zlib1g-dev…   2.6MB     buildkit.dockerfile.v0
+<missing>      49 seconds ago       RUN /bin/sh -c apt-get -y install zlib1g # b…   0B        buildkit.dockerfile.v0
+<missing>      51 seconds ago       RUN /bin/sh -c apt-get -y install wget # bui…   20.8kB    buildkit.dockerfile.v0
+<missing>      54 seconds ago       RUN /bin/sh -c apt-get -y install vim # buil…   42.5MB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install unzip # bu…   2.61MB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install tcsh # bui…   3.44MB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install subversion…   8.68MB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install ssh # buil…   10.4MB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install rsync # bu…   2.88MB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install python3-vi…   9.47MB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install python3 # …   18.4kB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install perl # bui…   18.4kB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install openmpi-do…   2.24MB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install openmpi-co…   18.5kB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install openmpi-bi…   18.5kB    buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get -y install nano # bui…   2.61MB    buildkit.dockerfile.v0
+<missing>      2 minutes ago        RUN /bin/sh -c apt-get -y install make # bui…   2.4MB     buildkit.dockerfile.v0
+<missing>      2 minutes ago        RUN /bin/sh -c apt-get -y install libx11-dev…   6.88MB    buildkit.dockerfile.v0
+<missing>      2 minutes ago        RUN /bin/sh -c apt-get -y install libopenmpi…   32.9MB    buildkit.dockerfile.v0
+<missing>      2 minutes ago        RUN /bin/sh -c apt-get -y install libopenbla…   155MB     buildkit.dockerfile.v0
+<missing>      2 minutes ago        RUN /bin/sh -c apt-get -y install less # bui…   15.5kB    buildkit.dockerfile.v0
+<missing>      2 minutes ago        RUN /bin/sh -c apt-get -y install git # buil…   91.7MB    buildkit.dockerfile.v0
+<missing>      2 minutes ago        RUN /bin/sh -c apt-get -y install gfortran #…   37.8MB    buildkit.dockerfile.v0
+<missing>      3 minutes ago        RUN /bin/sh -c apt-get -y install g++ # buil…   191MB     buildkit.dockerfile.v0
+<missing>      3 minutes ago        RUN /bin/sh -c apt-get -y install emacs # bu…   381MB     buildkit.dockerfile.v0
+<missing>      4 minutes ago        RUN /bin/sh -c apt-get -y install bzip2 # bu…   0B        buildkit.dockerfile.v0
+<missing>      4 minutes ago        RUN /bin/sh -c apt-get -y install binutils #…   13.8MB    buildkit.dockerfile.v0
+<missing>      4 minutes ago        RUN /bin/sh -c apt-get update # buildkit        58.3MB    buildkit.dockerfile.v0
+<missing>      4 minutes ago        MAINTAINER Falk Herwig                          0B        buildkit.dockerfile.v0
+<missing>      7 months ago         /bin/sh -c #(nop)  CMD ["/bin/bash"]            0B        
+<missing>      7 months ago         /bin/sh -c #(nop) ADD file:f9ee450324e6ff2c9…   72.8MB    
+<missing>      7 months ago         /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B        
+<missing>      7 months ago         /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B        
+<missing>      7 months ago         /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B        
+<missing>      7 months ago         /bin/sh -c #(nop)  ARG RELEASE                  0B        

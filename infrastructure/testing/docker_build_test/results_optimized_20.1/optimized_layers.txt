@@ -1,0 +1,16 @@
+IMAGE          CREATED          CREATED BY                                      SIZE      COMMENT
+585542c71478   24 seconds ago   WORKDIR /home/user                              0B        buildkit.dockerfile.v0
+<missing>      24 seconds ago   ENV HOME=/home/user MESA_DIR=/home/user/mesa…   0B        buildkit.dockerfile.v0
+<missing>      24 seconds ago   RUN /bin/sh -c set -e &&     cd /tmp &&     …   2.16GB    buildkit.dockerfile.v0
+<missing>      46 seconds ago   COPY dot.bash_aliases /home/user/.bash_alias…   229B      buildkit.dockerfile.v0
+<missing>      46 seconds ago   WORKDIR /home/user                              0B        buildkit.dockerfile.v0
+<missing>      46 seconds ago   USER user                                       0B        buildkit.dockerfile.v0
+<missing>      46 seconds ago   RUN /bin/sh -c useradd -d /home/user -m -s /…   335kB     buildkit.dockerfile.v0
+<missing>      47 seconds ago   RUN /bin/sh -c apt-get update &&     DEBIAN_…   872MB     buildkit.dockerfile.v0
+<missing>      47 seconds ago   LABEL maintainer=Falk Herwig <fherwig@uvic.c…   0B        buildkit.dockerfile.v0
+<missing>      7 months ago     /bin/sh -c #(nop)  CMD ["/bin/bash"]            0B        
+<missing>      7 months ago     /bin/sh -c #(nop) ADD file:f9ee450324e6ff2c9…   72.8MB    
+<missing>      7 months ago     /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B        
+<missing>      7 months ago     /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B        
+<missing>      7 months ago     /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B        
+<missing>      7 months ago     /bin/sh -c #(nop)  ARG RELEASE                  0B        
