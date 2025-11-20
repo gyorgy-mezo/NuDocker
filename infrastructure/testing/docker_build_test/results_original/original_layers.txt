@@ -1,0 +1,18 @@
+IMAGE          CREATED              CREATED BY                                      SIZE      COMMENT
+bb668b4468a0   17 seconds ago       WORKDIR /home/user                              0B        buildkit.dockerfile.v0
+<missing>      17 seconds ago       ENV HOME=/home/user                             0B        buildkit.dockerfile.v0
+<missing>      17 seconds ago       USER user                                       0B        buildkit.dockerfile.v0
+<missing>      17 seconds ago       RUN /bin/sh -c (cd /tmp; wget https://zenodo…   1.44GB    buildkit.dockerfile.v0
+<missing>      About a minute ago   USER user                                       0B        buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c chown user:user /home/user/.b…   229B      buildkit.dockerfile.v0
+<missing>      About a minute ago   COPY dot.bash_aliases /home/user/.bash_alias…   229B      buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c useradd -d /home/user -m -c "…   399kB     buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN /bin/sh -c apt-get update &&     apt-get…   765MB     buildkit.dockerfile.v0
+<missing>      3 minutes ago        COPY apt_packages_nudome.txt /tmp/apt_packag…   229B      buildkit.dockerfile.v0
+<missing>      3 minutes ago        LABEL maintainer=Falk Herwig <fherwig@uvic.c…   0B        buildkit.dockerfile.v0
+<missing>      2 years ago          /bin/sh -c #(nop)  CMD ["/bin/bash"]            0B        
+<missing>      2 years ago          /bin/sh -c #(nop) ADD file:3c74e7e08cbf9a876…   63.2MB    
+<missing>      2 years ago          /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B        
+<missing>      2 years ago          /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B        
+<missing>      2 years ago          /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B        
+<missing>      2 years ago          /bin/sh -c #(nop)  ARG RELEASE                  0B        

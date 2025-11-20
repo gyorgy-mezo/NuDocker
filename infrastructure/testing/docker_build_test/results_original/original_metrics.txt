@@ -1,0 +1,6 @@
+Build Time: 211 seconds (3 minutes)
+Image Size: 2.27GB
+Layer Count: 18
+Dockerfile: Dockerfile_template (ORIGINAL nudome18)
+VM Flavor: m2.4xlarge (32 vCPU, 64GB RAM)
+Test Date: Thu Nov 20 16:56:54 UTC 2025
