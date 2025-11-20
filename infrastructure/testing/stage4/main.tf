@@ -131,25 +131,25 @@ resource "openstack_compute_instance_v2" "central_manager" {
   }
 
   # Configure as central manager + NFS server
-  user_data = <<-EOF
-    #!/bin/bash
-    set -e
+  user_data = <<EOF
+#!/bin/bash
+set -e
 
-    # Get internal IP
-    INTERNAL_IP=$(hostname -I | awk '{print $1}')
+# Get internal IP
+INTERNAL_IP=$(hostname -I | awk '{print $1}')
 
-    # Configure NFS server
-    apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y nfs-kernel-server
+# Configure NFS server
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y nfs-kernel-server
 
-    # Configure NFS exports for /home
-    echo "/home 192.168.0.0/24(rw,sync,no_subtree_check,no_root_squash)" > /etc/exports
-    exportfs -ra
-    systemctl enable nfs-kernel-server
-    systemctl restart nfs-kernel-server
+# Configure NFS exports for /home
+echo "/home 192.168.0.0/24(rw,sync,no_subtree_check,no_root_squash)" > /etc/exports
+exportfs -ra
+systemctl enable nfs-kernel-server
+systemctl restart nfs-kernel-server
 
-    # Configure HTCondor as central manager
-    cat > /etc/condor/config.d/50-central.config <<EOC
+# Configure HTCondor as central manager
+cat > /etc/condor/config.d/50-central.config <<EOC
 # Central Manager configuration for HUN-REN Cloud
 # Explicit resource detection (auto-detection fails in HUN-REN environment)
 
@@ -186,25 +186,25 @@ UID_DOMAIN = nudocker-test
 DOCKER = /usr/bin/docker
 EOC
 
-    # Start HTCondor
-    systemctl enable condor
-    systemctl restart condor
+# Start HTCondor
+systemctl enable condor
+systemctl restart condor
 
-    # Wait for HTCondor to fully start
-    sleep 10
+# Wait for HTCondor to fully start
+sleep 10
 
-    # Create test submit files
-    mkdir -p /home/ubuntu/cluster_test
-    cat > /home/ubuntu/cluster_test/test_script.sh <<'EOS'
+# Create test submit files
+mkdir -p /home/ubuntu/cluster_test
+cat > /home/ubuntu/cluster_test/test_script.sh <<'EOS'
 #!/bin/bash
 echo "Job $1 running on $(hostname) at $(date)"
 sleep 5
 echo "Job $1 completed successfully"
 exit 0
 EOS
-    chmod +x /home/ubuntu/cluster_test/test_script.sh
+chmod +x /home/ubuntu/cluster_test/test_script.sh
 
-    cat > /home/ubuntu/cluster_test/distributed_job.sub <<'EOS'
+cat > /home/ubuntu/cluster_test/distributed_job.sub <<'EOS'
 # Distributed job submission file
 # Uses a script file for clean execution
 
@@ -223,10 +223,16 @@ request_memory = 512MB
 queue 12
 EOS
 
-    chown -R ubuntu:ubuntu /home/ubuntu/cluster_test
+chown -R ubuntu:ubuntu /home/ubuntu/cluster_test
 
-    echo "Central Manager configuration complete"
-  EOF
+# Fix permissions for HTCondor access (HTCondor runs as 'condor' user)
+# Allow HTCondor to cd into /home/ubuntu
+chmod 755 /home/ubuntu
+# Allow HTCondor to write job outputs
+chmod 777 /home/ubuntu/cluster_test
+
+echo "Central Manager configuration complete"
+EOF
 }
 
 # Execute Node VM
@@ -267,32 +273,32 @@ resource "openstack_compute_instance_v2" "execute_node" {
   depends_on = [openstack_compute_instance_v2.central_manager]
 
   # Configure as execute node + NFS client
-  user_data = <<-EOF
-    #!/bin/bash
-    set -e
+  user_data = <<EOF
+#!/bin/bash
+set -e
 
-    # Wait for central manager to be ready
-    sleep 60
+# Wait for central manager to be ready
+sleep 60
 
-    # Get central manager IP
-    CENTRAL_IP="${openstack_compute_instance_v2.central_manager.access_ip_v4}"
+# Get central manager IP
+CENTRAL_IP="${openstack_compute_instance_v2.central_manager.access_ip_v4}"
 
-    # Install NFS client
-    apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y nfs-common
+# Install NFS client
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y nfs-common
 
-    # Mount NFS /home from central manager
-    echo "$CENTRAL_IP:/home /home nfs defaults,_netdev 0 0" >> /etc/fstab
-    mount -a
+# Mount NFS /home from central manager
+echo "$CENTRAL_IP:/home /home nfs defaults,_netdev 0 0" >> /etc/fstab
+mount -a
 
-    # Verify NFS mount
-    df -h | grep home || echo "NFS mount failed"
+# Verify NFS mount
+df -h | grep home || echo "NFS mount failed"
 
-    # Get execute node internal IP
-    EXECUTE_IP=\$(hostname -I | awk '{print \$1}')
+# Get execute node internal IP
+EXECUTE_IP=$(hostname -I | awk '{print $1}')
 
-    # Configure HTCondor as execute node
-    cat > /etc/condor/config.d/50-execute.config <<EOC
+# Configure HTCondor as execute node
+cat > /etc/condor/config.d/50-execute.config <<EOC
 # Execute Node configuration for HUN-REN Cloud
 # Explicit resource detection (auto-detection fails in HUN-REN environment)
 
@@ -307,7 +313,7 @@ DAEMON_LIST = MASTER, STARTD
 CONDOR_HOST = $CENTRAL_IP
 
 # Network configuration
-NETWORK_INTERFACE = \$EXECUTE_IP
+NETWORK_INTERFACE = $EXECUTE_IP
 ALLOW_READ = *
 ALLOW_WRITE = *
 
@@ -329,12 +335,12 @@ UID_DOMAIN = nudocker-test
 DOCKER = /usr/bin/docker
 EOC
 
-    # Start HTCondor
-    systemctl enable condor
-    systemctl restart condor
+# Start HTCondor
+systemctl enable condor
+systemctl restart condor
 
-    echo "Execute Node configuration complete"
-  EOF
+echo "Execute Node configuration complete"
+EOF
 }
 
 # Floating IP for central manager
