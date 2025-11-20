@@ -1,0 +1,290 @@
+# NuDocker .gitignore
+
+# ============================================================================
+# Cloud Credentials and Secrets
+# ============================================================================
+
+# OpenStack application credentials (OpenRC files)
+app-cred-*.sh
+*-openrc.sh
+app-cred-bridge-openrc.sh
+
+# OpenStack clouds.yaml with credentials
+clouds.yaml
+secure.yaml
+
+# SSH keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Terraform variable files with secrets
+*.tfvars
+!*.tfvars.example
+
+# Packer variable files with secrets
+*.pkrvars.hcl
+!*.pkrvars.hcl.example
+
+# Ansible vault files
+*.vault
+vault-password.txt
+
+# ============================================================================
+# Terraform
+# ============================================================================
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Lock files
+.terraform.lock.hcl
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ============================================================================
+# Packer
+# ============================================================================
+
+# Packer cache
+packer_cache/
+*.box
+
+# Packer logs
+packer-*.log
+
+# ============================================================================
+# Ansible
+# ============================================================================
+
+# Retry files
+*.retry
+
+# Ansible vault password files
+.vault_pass
+.vault_pass.txt
+
+# ============================================================================
+# Test Results and Logs
+# ============================================================================
+
+# Testing results directory
+infrastructure/testing/results/
+infrastructure/testing/cloud_resources_*/
+*.tar.gz
+
+# Log files
+*.log
+
+# ============================================================================
+# Python
+# ============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+infraprog/
+.venv/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ============================================================================
+# Operating System Files
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ============================================================================
+# IDE and Editor Files
+# ============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# Emacs
+*~
+\#*\#
+.\#*
+.projectile
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================================
+# Docker and Container Files
+# ============================================================================
+
+# Docker Compose override files
+docker-compose.override.yml
+
+# Container build artifacts
+*.sif
+*.img
+
+# ============================================================================
+# MESA and Scientific Computing
+# ============================================================================
+
+# MESA work directories with results
+mesa_work_*/
+mesa_results_*/
+LOGS/
+photos/
+*.mod
+
+# Large data files
+*.hdf5
+*.fits
+*.dat.gz
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+
+# Temporary directories
+tmp/
+temp/
+.tmp/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Test output files
+test_output/
+test_results/
+
+# ============================================================================
+# Security and Sensitive Information
+# ============================================================================
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# API keys and tokens
+.api_keys
+secrets/
+credentials/
+
+# Certificate files
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# ============================================================================
+# Generated Files
+# ============================================================================
+
+# Generated Dockerfiles from templates
+infrastructure/build_docker_images/Dockerfile
+!infrastructure/build_docker_images/Dockerfile_template*
+
+# Generated reports
+*_report_*.txt
+*_report_*.html
+
+# Ansible generated inventory
+inventory.ini
+hosts.ini
+
+# ============================================================================
+# Project-Specific
+# ============================================================================
+
+# HTCondor job outputs
+*.out
+*.err
+condor_*.log
+
+# NuDocker test outputs
+nudocker_test_*
+stage*_test_results_*
+
+# Cloud resource collection outputs
+cloud_resources_*.txt
+hun-ren-cloud-report_*.txt
+
+# Custom images built during testing
+nudocker-test-*.qcow2
+nudocker-test-*.raw
