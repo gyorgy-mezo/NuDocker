@@ -51,7 +51,7 @@ RUN useradd -d /home/user -m -c "" user && \
 USER user
 COPY dot.bash_aliases /home/user/.bash_aliases
 
-RUN (cd /tmp; wget --user-agent=""  http://www.astro.wisc.edu/~townsend/resource/download/mesasdk/mesasdk-x86_64-linux-yyyymmdd.tar.gz) && \
+RUN (cd /tmp; wget https://sztaki.science-cloud.hu:6780/swift/v1/AUTH_5ab94c933a224dc7bfc7e6cd0c812bd7/data/mesasdk-x86_64-linux-yyyymmdd.tar.gz) && \
     tar xvfz /tmp/mesasdk-x86_64-linux-yyyymmdd.tar.gz -C /home/user && \
     rm -f /tmp/mesasdk-x86_64-linux-yyyymmdd.tar.gz 
 

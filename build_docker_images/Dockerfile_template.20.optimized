@@ -59,13 +59,13 @@ WORKDIR /home/user
 # Configure MESA environment
 COPY --chown=user:user dot.bash_aliases /home/user/.bash_aliases
 
-# Download and extract MESA SDK from astro.wisc.edu (Ubuntu 20.x source)
-# Note: Uses astro.wisc.edu instead of Zenodo for newer SDK versions
+# Download and extract MESA SDK from HUN-REN object storage
+# Note: Uses HUN-REN Cloud hosted files (faster and more reliable)
 RUN --mount=type=cache,target=/tmp/cache,uid=1000,gid=1000 \
     set -e && \
     cd /tmp && \
-    wget -q --show-progress --progress=bar:force:noscroll --user-agent="" \
-         http://www.astro.wisc.edu/~townsend/resource/download/mesasdk/mesasdk-x86_64-linux-yyyymmdd.tar.gz && \
+    wget -q --show-progress --progress=bar:force:noscroll \
+         https://sztaki.science-cloud.hu:6780/swift/v1/AUTH_5ab94c933a224dc7bfc7e6cd0c812bd7/data/mesasdk-x86_64-linux-yyyymmdd.tar.gz && \
     tar xzf mesasdk-x86_64-linux-yyyymmdd.tar.gz -C /home/user && \
     rm -f mesasdk-x86_64-linux-yyyymmdd.tar.gz
 
