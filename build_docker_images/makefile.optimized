@@ -11,9 +11,9 @@ DOCKER_BUILDKIT := 1
 REGISTRY := nugrid/nudome
 
 # Template selection
-TEMPLATE_DEFAULT := Dockerfile_template
-TEMPLATE_20 := Dockerfile_template.20
-TEMPLATE_MPPNP := Dockerfile_template_mppnp
+TEMPLATE_DEFAULT := Dockerfile_template.optimized
+TEMPLATE_20 := Dockerfile_template.20.optimized
+TEMPLATE_MPPNP := Dockerfile_template_mppnp.optimized
 
 # Build function - DRY principle
 # Usage: $(call build_image,ubuntu_ver,mesa_ver,image_tag,template,zenodo_id)
